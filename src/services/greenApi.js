@@ -366,6 +366,26 @@ export async function sendWhatsAppImage({ phone, remoteJid, imageUrl, instance, 
   return sendImageByUrl(phone ?? remoteJid ?? '', imageUrl, creds, { fileName, caption });
 }
 
+/**
+ * Send an audio file by public URL — Green API delivers audio files as native WhatsApp audio.
+ * @param {{ phone?: string, remoteJid?: string, audioUrl: string, instance?: string, fileName?: string }} params
+ */
+export async function sendWhatsAppAudioFile({ phone, remoteJid, audioUrl, instance, fileName }) {
+  const creds = await resolveGreenCredentialsByInstanceKey(instance);
+  if (!creds.configured) {
+    throw new Error('Green API غير مضبوط — أضف Instance ID و API Token');
+  }
+  const body = await greenApiRequest(creds, 'sendFileByUrl', {
+    method: 'POST',
+    body: JSON.stringify({
+      chatId: toGreenApiChatId(phone ?? remoteJid ?? ''),
+      urlFile: audioUrl,
+      fileName: fileName ?? 'voice.mp3',
+    }),
+  });
+  return { status: 'success', messageId: body.idMessage ?? null, provider: 'green-api', raw: body };
+}
+
 export async function sendWhatsAppAudio({ phone, audioBase64 }) {
   void phone;
   void audioBase64;

@@ -3,7 +3,7 @@ import { authenticate, attachUser } from '../middleware/auth.js';
 import { requireAgent } from '../middleware/requireAgent.js';
 import { serializeLead, serializeMessage } from '../lib/serializers.js';
 import { prisma } from '../lib/prisma.js';
-import { sendAgentWhatsAppMessage } from '../services/agentMessaging.js';
+import { sendAgentWhatsAppMessage, sendAgentWhatsAppVoice } from '../services/agentMessaging.js';
 import { setLeadAiPaused } from '../services/leadTakeover.js';
 
 const router = express.Router();
@@ -126,6 +126,30 @@ router.patch('/:id/takeover', async (req, res, next) => {
     next(err);
   }
 });
+
+/** Raw audio body (Content-Type: audio/mpeg) recorded in the dashboard. */
+router.post(
+  '/:id/send-voice',
+  express.raw({ type: () => true, limit: '4mb' }),
+  async (req, res, next) => {
+    try {
+      const proto = String(req.headers['x-forwarded-proto'] ?? req.protocol ?? 'https').split(',')[0].trim();
+      const host = String(req.headers['x-forwarded-host'] ?? req.get('host') ?? '').split(',')[0].trim();
+      const { lead, message } = await sendAgentWhatsAppVoice({
+        leadId: req.params.id,
+        buffer: Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0),
+        mimeType: req.headers['content-type'],
+        requestBase: `${proto}://${host}`,
+      });
+      res.status(201).json({ message: serializeMessage(message), lead: serializeLead(lead) });
+    } catch (err) {
+      if (err.status === 404) {
+        return res.status(404).json({ error: err.message });
+      }
+      next(err);
+    }
+  }
+);
 
 router.post('/:id/send-message', handleAgentSendMessage);
 

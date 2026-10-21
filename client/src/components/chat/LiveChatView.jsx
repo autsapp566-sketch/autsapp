@@ -3,8 +3,10 @@ import {
   fetchLead,
   fetchLeads,
   sendLeadMessage,
+  sendLeadVoice,
   toggleLeadAi,
 } from '../../api/client.js';
+import { startVoiceRecording } from '../../lib/voiceRecorder.js';
 import { useSocket } from '../../context/SocketContext.jsx';
 import { useLeadRealtime, useLeadsListRealtime } from '../../hooks/useLeadRealtime.js';
 
@@ -117,6 +119,9 @@ function previewText(msg) {
   if (!msg?.content) {
     return 'لا توجد رسائل بعد';
   }
+  if (/^\[VOICE:/.test(msg.content)) {
+    return '🎤 رسالة صوتية';
+  }
   const t = msg.content.replace(/\s+/g, ' ').trim();
   return t.length > 72 ? `${t.slice(0, 72)}…` : t;
 }
@@ -132,6 +137,23 @@ function bubbleClasses(sender) {
   return 'me-auto bg-[#202c33] text-[#e9edef] rounded-2xl rounded-bl-md shadow-sm border border-[#2a3942]';
 }
 
+const VOICE_RE = /^\[VOICE:\s*(\S+)\]$/;
+const MAX_RECORD_SECONDS = 180;
+
+function formatTimer(total) {
+  const m = Math.floor(total / 60);
+  const s = String(total % 60).padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+function MicIcon({ className = 'h-5 w-5' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z" />
+    </svg>
+  );
+}
+
 function ConversationPanel({ leadId, onLeadChange, onMobileBack, onToast }) {
   const [lead, setLead] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -140,8 +162,87 @@ function ConversationPanel({ leadId, onLeadChange, onMobileBack, onToast }) {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [takeoverBusy, setTakeoverBusy] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [recSeconds, setRecSeconds] = useState(0);
+  const [voiceBusy, setVoiceBusy] = useState(false);
+  const recorderRef = useRef(null);
   const bottomRef = useRef(null);
   const socket = useSocket();
+
+  // Timer + auto-stop while recording.
+  useEffect(() => {
+    if (!recording) {
+      return undefined;
+    }
+    const id = setInterval(() => setRecSeconds((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [recording]);
+
+  useEffect(() => {
+    if (recording && recSeconds >= MAX_RECORD_SECONDS) {
+      finishRecording(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recSeconds, recording]);
+
+  // Stop the microphone if the conversation changes or the panel unmounts.
+  useEffect(
+    () => () => {
+      if (recorderRef.current) {
+        recorderRef.current.cancel();
+        recorderRef.current = null;
+        setRecording(false);
+      }
+    },
+    [leadId]
+  );
+
+  async function beginRecording() {
+    if (recording || voiceBusy) {
+      return;
+    }
+    setError('');
+    try {
+      recorderRef.current = await startVoiceRecording();
+      setRecSeconds(0);
+      setRecording(true);
+    } catch (err) {
+      setError(err.message ?? 'تعذر بدء التسجيل');
+    }
+  }
+
+  function cancelRecording() {
+    recorderRef.current?.cancel();
+    recorderRef.current = null;
+    setRecording(false);
+    setRecSeconds(0);
+  }
+
+  async function finishRecording(send) {
+    const recorder = recorderRef.current;
+    if (!recorder) {
+      return;
+    }
+    recorderRef.current = null;
+    setRecording(false);
+    if (!send) {
+      recorder.cancel();
+      return;
+    }
+    setVoiceBusy(true);
+    setError('');
+    try {
+      const blob = await recorder.stop();
+      const { message, lead: updatedLead } = await sendLeadVoice(leadId, blob);
+      appendMessage(message);
+      applyLead(updatedLead);
+    } catch (err) {
+      setError(err.message ?? 'تعذر إرسال الرسالة الصوتية');
+    } finally {
+      setVoiceBusy(false);
+      setRecSeconds(0);
+    }
+  }
 
   const loadLead = useCallback(async () => {
     if (!leadId) {
@@ -355,7 +456,16 @@ function ConversationPanel({ leadId, onLeadChange, onMobileBack, onToast }) {
                       <span className="opacity-60">·</span>
                       <span className="opacity-80">{meta.tag}</span>
                     </p>
-                    <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{msg.content}</p>
+                    {VOICE_RE.test(msg.content) ? (
+                      <audio
+                        controls
+                        preload="none"
+                        src={VOICE_RE.exec(msg.content)[1]}
+                        className="h-10 w-60 max-w-full"
+                      />
+                    ) : (
+                      <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{msg.content}</p>
+                    )}
                     <p className="mt-1 text-end text-[10px] text-[#8696a0]/90">{formatBubbleTime(msg.createdAt)}</p>
                   </div>
                 </div>
@@ -388,6 +498,40 @@ function ConversationPanel({ leadId, onLeadChange, onMobileBack, onToast }) {
             </button>
           ))}
         </div>
+        {recording || voiceBusy ? (
+          <div className="flex items-center gap-3 rounded-xl bg-[#2a3942] px-3 py-2.5">
+            <button
+              type="button"
+              onClick={cancelRecording}
+              disabled={voiceBusy}
+              title="إلغاء التسجيل"
+              className="rounded-full p-2 text-lg text-red-300 transition hover:bg-red-500/20 disabled:opacity-40"
+            >
+              🗑
+            </button>
+            <span className="flex flex-1 items-center gap-2 text-sm text-[#e9edef]">
+              {voiceBusy ? (
+                <span className="text-[#8696a0]">جاري تجهيز وإرسال الرسالة الصوتية…</span>
+              ) : (
+                <>
+                  <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />
+                  <span dir="ltr" className="font-mono tabular-nums">
+                    {formatTimer(recSeconds)}
+                  </span>
+                  <span className="text-xs text-[#8696a0]">جاري التسجيل…</span>
+                </>
+              )}
+            </span>
+            <button
+              type="button"
+              onClick={() => finishRecording(true)}
+              disabled={voiceBusy}
+              className="shrink-0 rounded-xl bg-[#00a884] px-4 py-2.5 text-sm font-bold text-[#111b21] transition hover:bg-[#06cf9c] disabled:opacity-40"
+            >
+              {voiceBusy ? '...' : 'إرسال ➤'}
+            </button>
+          </div>
+        ) : (
         <form onSubmit={handleSend} className="flex items-end gap-2">
           <textarea
             value={draft}
@@ -401,6 +545,16 @@ function ConversationPanel({ leadId, onLeadChange, onMobileBack, onToast }) {
             className="max-h-32 min-h-[44px] flex-1 resize-y rounded-xl border border-[#2a3942] bg-[#2a3942] px-3 py-2.5 text-sm text-[#e9edef] outline-none placeholder:text-[#8696a0] focus:border-emerald-600/60 focus:ring-1 focus:ring-emerald-600/30"
           />
           <button
+            type="button"
+            onClick={beginRecording}
+            disabled={!isAiPaused}
+            title={isAiPaused ? 'تسجيل رسالة صوتية' : 'أوقف البوت (استلام بشري) لتتمكن من إرسال رسالة صوتية'}
+            aria-label="تسجيل رسالة صوتية"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#2a3942] text-[#00a884] transition hover:bg-[#33474f] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <MicIcon />
+          </button>
+          <button
             type="submit"
             disabled={sending || !draft.trim()}
             className="shrink-0 rounded-xl bg-[#00a884] px-4 py-2.5 text-sm font-bold text-[#111b21] transition hover:bg-[#06cf9c] disabled:opacity-40"
@@ -408,6 +562,7 @@ function ConversationPanel({ leadId, onLeadChange, onMobileBack, onToast }) {
             {sending ? '...' : 'إرسال عبر الواتساب'}
           </button>
         </form>
+        )}
       </footer>
     </div>
   );

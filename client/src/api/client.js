@@ -106,6 +106,15 @@ export function toggleLeadAi(id, aiPaused) {
   });
 }
 
+/** Send a recorded voice note (MP3 blob) to the customer on WhatsApp. */
+export function sendLeadVoice(id, audioBlob) {
+  return apiFetch(`/api/leads/${id}/send-voice`, {
+    method: 'POST',
+    headers: { 'Content-Type': audioBlob.type || 'audio/mpeg' },
+    body: audioBlob,
+  });
+}
+
 export function sendLeadMessage(id, content) {
   return apiFetch(`/api/leads/${id}/send-message`, {
     method: 'POST',
