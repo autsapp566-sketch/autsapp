@@ -8,6 +8,10 @@ export async function sendWhatsAppImage(params) {
   return greenApi.sendWhatsAppImage(params);
 }
 
+export async function sendWhatsAppAudioFile(params) {
+  return greenApi.sendWhatsAppAudioFile(params);
+}
+
 export async function sendWhatsAppAudio(params) {
   return greenApi.sendWhatsAppAudio(params);
 }

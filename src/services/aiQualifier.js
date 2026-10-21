@@ -71,7 +71,10 @@ export function formatConversationTranscript(messages) {
   return sorted
     .map((m) => {
       const label = SENDER_LABELS[m.sender] ?? m.sender;
-      const text = typeof m.content === 'string' ? m.content.trim() : '';
+      let text = typeof m.content === 'string' ? m.content.trim() : '';
+      if (/^\[VOICE:\s*\S+\]$/.test(text)) {
+        text = '(رسالة صوتية أرسلتها الموظفة للزبون)';
+      }
       return `${label}: ${text}`;
     })
     .join('\n');
