@@ -306,6 +306,30 @@ export async function sendMessage(phoneOrChatId, message, creds) {
 }
 
 /**
+ * Send an image (or any file) by public URL — shown as a real WhatsApp image, not a link.
+ * @param {string} phoneOrChatId
+ * @param {string} imageUrl
+ * @param {GreenCredentials} [creds]
+ * @param {{ fileName?: string, caption?: string }} [opts]
+ */
+export async function sendImageByUrl(phoneOrChatId, imageUrl, creds, opts = {}) {
+  const credentials = creds ?? resolveGreenCredentials();
+  if (!credentials.configured) {
+    throw new Error('Green API غير مضبوط — أضف Instance ID و API Token');
+  }
+  const body = await greenApiRequest(credentials, 'sendFileByUrl', {
+    method: 'POST',
+    body: JSON.stringify({
+      chatId: toGreenApiChatId(phoneOrChatId),
+      urlFile: imageUrl,
+      fileName: opts.fileName ?? 'image.jpg',
+      ...(opts.caption ? { caption: opts.caption.slice(0, 1024) } : {}),
+    }),
+  });
+  return { status: 'success', messageId: body.idMessage ?? null, provider: 'green-api', raw: body };
+}
+
+/**
  * @param {string} [instanceKey] instanceName or greenInstanceId
  */
 export async function resolveGreenCredentialsByInstanceKey(instanceKey) {
@@ -332,6 +356,14 @@ export async function sendWhatsAppText({ phone, remoteJid, text, instance }) {
   const creds = await resolveGreenCredentialsByInstanceKey(instance);
   const target = phone ?? remoteJid ?? '';
   return sendMessage(target, text, creds);
+}
+
+/**
+ * @param {{ phone?: string, remoteJid?: string, imageUrl: string, instance?: string, fileName?: string, caption?: string }} params
+ */
+export async function sendWhatsAppImage({ phone, remoteJid, imageUrl, instance, fileName, caption }) {
+  const creds = await resolveGreenCredentialsByInstanceKey(instance);
+  return sendImageByUrl(phone ?? remoteJid ?? '', imageUrl, creds, { fileName, caption });
 }
 
 export async function sendWhatsAppAudio({ phone, audioBase64 }) {
