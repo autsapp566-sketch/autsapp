@@ -2,10 +2,13 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const required = ['DATABASE_URL', 'PORT', 'JWT_SECRET'];
+const required = ['DATABASE_URL', 'JWT_SECRET'];
+if (!process.env.VERCEL) {
+  required.push('PORT');
+}
 
 for (const key of required) {
-  if (!process.env[key]) {
+  if (!process.env[key]?.trim()) {
     throw new Error(`Missing required environment variable: ${key}`);
   }
 }
@@ -17,7 +20,7 @@ function envFlag(name) {
 
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
-  port: Number(process.env.PORT),
+  port: Number(process.env.PORT ?? 3000),
   databaseUrl: process.env.DATABASE_URL,
   corsOrigin: process.env.CORS_ORIGIN ?? '*',
   jwtSecret: process.env.JWT_SECRET,

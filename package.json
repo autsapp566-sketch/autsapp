@@ -9,6 +9,7 @@
     "dev:client": "npm run dev --prefix client",
     "dev:all": "concurrently -n api,web -c blue,green \"npm run dev\" \"npm run dev:client\"",
     "start": "node src/index.js",
+    "build": "prisma generate && node src/index.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
