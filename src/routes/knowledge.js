@@ -10,18 +10,38 @@ import {
   updateKnowledgeItem,
 } from '../services/knowledgeBase.js';
 import { uploadProductImages } from '../middleware/productUpload.js';
+import { saveUploadedImage } from '../services/uploadedImages.js';
 
 const router = express.Router();
 
 router.use(authenticate, attachUser, requireAgent);
 
+function requestBaseUrl(req) {
+  const proto = String(req.headers['x-forwarded-proto'] ?? req.protocol ?? 'https')
+    .split(',')[0]
+    .trim();
+  const host = String(req.headers['x-forwarded-host'] ?? req.get('host') ?? '')
+    .split(',')[0]
+    .trim();
+  return `${proto}://${host}`;
+}
+
 router.post('/upload-images', requireAdmin, (req, res, next) => {
-  uploadProductImages.array('images', 12)(req, res, (err) => {
+  uploadProductImages.array('images', 12)(req, res, async (err) => {
     if (err) {
       return next(err);
     }
-    const urls = (req.files ?? []).map((f) => `/uploads/products/${f.filename}`);
-    res.status(201).json({ urls });
+    try {
+      const base = requestBaseUrl(req);
+      const urls = [];
+      for (const file of req.files ?? []) {
+        const id = await saveUploadedImage(file.buffer, file.mimetype);
+        urls.push(`${base}/api/uploads/images/${id}`);
+      }
+      res.status(201).json({ urls });
+    } catch (saveErr) {
+      next(saveErr);
+    }
   });
 });
 
