@@ -1,7 +1,9 @@
 const TOKEN_KEY = 'auth_token';
 
 /** Production: set VITE_API_URL to the API deployment (e.g. https://test-wats.vercel.app). Dev uses Vite proxy. */
-const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
+const API_BASE = String(import.meta.env.VITE_API_URL ?? '')
+  .trim()
+  .replace(/\/+$/, '');
 
 function apiUrl(path) {
   const normalized = path.startsWith('/') ? path : `/${path}`;

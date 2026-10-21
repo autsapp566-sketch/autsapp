@@ -3,9 +3,6 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const required = ['DATABASE_URL', 'JWT_SECRET'];
-if (!process.env.VERCEL) {
-  required.push('PORT');
-}
 
 for (const key of required) {
   if (!process.env[key]?.trim()) {
