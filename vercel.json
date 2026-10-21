@@ -1,16 +1,18 @@
 {
   "version": 2,
-  "buildCommand": "npx prisma generate",
   "builds": [
     {
-      "src": "src/vercel.js",
-      "use": "@vercel/node"
+      "src": "src/index.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["prisma/**/*"]
+      }
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "src/vercel.js"
+      "dest": "src/index.js"
     }
   ]
 }
