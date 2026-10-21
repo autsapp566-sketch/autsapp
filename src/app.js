@@ -12,6 +12,7 @@ import aiVoiceSettingsRoutes from './routes/aiVoiceSettings.js';
 import systemSettingsRoutes from './routes/settings.js';
 import knowledgeRoutes from './routes/knowledge.js';
 import analyticsRoutes from './routes/analytics.js';
+import alertsRoutes from './routes/alerts.js';
 import botPlaygroundRoutes from './routes/botPlayground.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { getProductUploadDir } from './lib/uploadDir.js';
@@ -63,6 +64,7 @@ export function createApp() {
   app.use('/api/settings', systemSettingsRoutes);
   app.use('/api/knowledge', knowledgeRoutes);
   app.use('/api/analytics', analyticsRoutes);
+  app.use('/api/alerts', alertsRoutes);
   app.use('/api/bot-playground', botPlaygroundRoutes);
   app.use('/uploads/products', express.static(getProductUploadDir()));
   app.use(errorHandler);

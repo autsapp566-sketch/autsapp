@@ -6,6 +6,7 @@ import { getAiSettings } from './aiSettings.js';
 import { synthesizeWhatsAppSpeech } from './voiceAi.js';
 import { broadcastLeadUpdated, broadcastMessageCreated, notifyLeadQualified } from './notifications.js';
 import { forwardHandoffToAgents } from './handoffForward.js';
+import { createAdminAlert } from './adminAlerts.js';
 import { prisma } from '../lib/prisma.js';
 
 /** @type {Record<string, import('@prisma/client').LeadStatus>} */
@@ -172,11 +173,12 @@ export async function processIncomingWhatsAppMessage(input) {
   } catch (err) {
     delivered = false;
     console.error('[whatsapp] bot reply NOT delivered:', err.message);
-    const failed = await prisma.message.update({
-      where: { id: botMessage.id },
-      data: { content: `⚠️ (لم يصل للزبون: ${err.message.slice(0, 160)})\n${botMessage.content}` },
+    // Admin-only notification — never put system errors inside the customer conversation.
+    await createAdminAlert({
+      kind: err.quota ? 'GREEN_QUOTA' : 'SEND_FAILED',
+      leadId: lead.id,
+      message: `⚠️ لم يصل رد البوت إلى ${updatedLead.name || updatedLead.phone} (+${updatedLead.phone}): ${err.message.slice(0, 300)}`,
     });
-    broadcastMessageCreated(updatedLead, failed);
   }
 
   for (const imageUrl of delivered ? imageUrls : []) {
