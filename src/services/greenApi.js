@@ -211,6 +211,36 @@ export function isGreenConnectedState(state) {
 }
 
 /**
+ * Current Green API instance settings (webhookUrl, incomingWebhook, ...).
+ * @param {GreenCredentials} creds
+ */
+export async function getGreenSettings(creds) {
+  return greenApiRequest(creds, 'getSettings', { method: 'GET' });
+}
+
+/**
+ * Point Green API at our webhook and enable incoming message notifications.
+ * Note: Green applies new settings after an automatic instance restart (up to a few minutes).
+ * @param {GreenCredentials} creds
+ * @param {string} webhookUrl
+ */
+export async function setGreenWebhook(creds, webhookUrl) {
+  return greenApiRequest(creds, 'setSettings', {
+    method: 'POST',
+    body: JSON.stringify({
+      webhookUrl,
+      webhookUrlToken: '',
+      incomingWebhook: 'yes',
+      outgoingWebhook: 'no',
+      outgoingMessageWebhook: 'no',
+      outgoingAPIMessageWebhook: 'no',
+      stateWebhook: 'no',
+      deviceWebhook: 'no',
+    }),
+  });
+}
+
+/**
  * @param {GreenCredentials} creds
  */
 export async function logoutInstance(creds) {
