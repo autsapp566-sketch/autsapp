@@ -51,8 +51,9 @@ export function createApp() {
   app.use('/api/knowledge', knowledgeRoutes);
   app.use('/api/analytics', analyticsRoutes);
   app.use('/api/bot-playground', botPlaygroundRoutes);
-  app.use('/uploads/products', express.static(path.join(__dirname, '../uploads/products')));
+  const uploadDir = process.env.VERCEL ? '/tmp/uploads/products' : path.join(__dirname, '../uploads/products');
 
+  app.use('/uploads/products', express.static(uploadDir));
   app.use(errorHandler);
 
   return app;
