@@ -95,7 +95,10 @@ router.post('/', async (req, res, next) => {
       ...result,
     });
   } catch (err) {
-    next(err);
+    // Answer 200 anyway: a 5xx makes Green API re-deliver the same webhook every minute,
+    // which re-saves the customer's message and re-calls OpenAI in a loop.
+    console.error('[webhook] processing failed:', err);
+    res.status(200).json({ ok: false, error: err.message });
   }
 });
 

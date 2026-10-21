@@ -22,18 +22,19 @@ export async function sendAgentWhatsAppMessage(leadId, content, instance) {
     throw err;
   }
 
+  // Send first: if WhatsApp rejects it, nothing is saved and the agent sees the real error.
+  await sendWhatsAppText({
+    phone: lead.phone,
+    text,
+    instance,
+  });
+
   const message = await prisma.message.create({
     data: {
       leadId: lead.id,
       sender: 'AGENT',
       content: text,
     },
-  });
-
-  await sendWhatsAppText({
-    phone: lead.phone,
-    text,
-    instance,
   });
 
   broadcastMessageCreated(lead, message);

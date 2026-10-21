@@ -154,14 +154,27 @@ export async function processIncomingWhatsAppMessage(input) {
 
   const aiSettings = await getAiSettings();
 
-  await sendWhatsAppText({
-    remoteJid: input.remoteJid,
-    phone: input.phone,
-    text: outboundText,
-    instance: input.instance,
-  });
+  // A failed send (e.g. Green API quota) must not make the webhook return 5xx: Green API
+  // would retry every minute and the customer's message would be processed again and again.
+  let delivered = true;
+  try {
+    await sendWhatsAppText({
+      remoteJid: input.remoteJid,
+      phone: input.phone,
+      text: outboundText,
+      instance: input.instance,
+    });
+  } catch (err) {
+    delivered = false;
+    console.error('[whatsapp] bot reply NOT delivered:', err.message);
+    const failed = await prisma.message.update({
+      where: { id: botMessage.id },
+      data: { content: `⚠️ (لم يصل للزبون: ${err.message.slice(0, 160)})\n${botMessage.content}` },
+    });
+    broadcastMessageCreated(updatedLead, failed);
+  }
 
-  for (const imageUrl of imageUrls) {
+  for (const imageUrl of delivered ? imageUrls : []) {
     try {
       await sendWhatsAppImage({
         remoteJid: input.remoteJid,
@@ -175,7 +188,7 @@ export async function processIncomingWhatsAppMessage(input) {
     }
   }
 
-  if (aiSettings.ttsEnabled) {
+  if (delivered && aiSettings.ttsEnabled) {
     try {
       const audioBuffer = await synthesizeWhatsAppSpeech(outboundText);
       if (audioBuffer) {
