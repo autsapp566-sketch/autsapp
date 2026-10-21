@@ -29,11 +29,11 @@ router.patch('/', requireAdmin, async (req, res, next) => {
   try {
     const row = await updateAiSettings({
       openAiApiKey: req.body?.openAiApiKey,
-      evolutionBaseUrl: req.body?.evolutionBaseUrl,
-      evolutionApiKey: req.body?.evolutionApiKey,
-      evolutionInstance: req.body?.evolutionInstance,
-      evolutionWebhookSecret: req.body?.evolutionWebhookSecret,
       appPublicUrl: req.body?.appPublicUrl,
+      greenApiInstanceId:
+        req.body?.greenApiInstanceId ?? req.body?.greenInstanceId ?? req.body?.idInstance,
+      greenApiToken: req.body?.greenApiToken ?? req.body?.apiTokenInstance,
+      greenApiUrl: req.body?.greenApiUrl ?? req.body?.apiUrl,
       textModel: req.body?.textModel,
       sttEnabled: req.body?.sttEnabled,
       ttsEnabled: req.body?.ttsEnabled,

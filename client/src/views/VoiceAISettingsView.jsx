@@ -30,10 +30,6 @@ export default function VoiceAISettingsView({ embedded = false }) {
 
   const [form, setForm] = useState({
     openAiApiKey: '',
-    evolutionBaseUrl: '',
-    evolutionApiKey: '',
-    evolutionInstance: '',
-    evolutionWebhookSecret: '',
     appPublicUrl: '',
     textModel: 'gpt-4o-mini',
     sttEnabled: true,
@@ -41,7 +37,6 @@ export default function VoiceAISettingsView({ embedded = false }) {
     employeePrompt: '',
     qualificationPrompt: '',
     openAiKeyConfigured: false,
-    evolutionApiKeyConfigured: false,
   });
   const [modelOptions, setModelOptions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,12 +58,7 @@ export default function VoiceAISettingsView({ embedded = false }) {
         employeePrompt: data.systemPrompt ?? s.employeePrompt ?? '',
         qualificationPrompt: s.qualificationPrompt ?? '',
         openAiKeyConfigured: data.openaiApiKeyConfigured ?? s.openAiKeyConfigured,
-        evolutionApiKeyConfigured: s.evolutionApiKeyConfigured,
         openAiApiKey: data.openaiApiKey ?? s.openAiKeyMasked ?? '',
-        evolutionBaseUrl: s.evolutionBaseUrl ?? '',
-        evolutionApiKey: s.evolutionApiKeyMasked ?? '',
-        evolutionInstance: s.evolutionInstance ?? '',
-        evolutionWebhookSecret: s.evolutionWebhookSecret ?? '',
         appPublicUrl: s.appPublicUrl ?? '',
       }));
       setModelOptions(data.options?.textModelOptions ?? []);
@@ -106,16 +96,10 @@ export default function VoiceAISettingsView({ embedded = false }) {
         ttsEnabled: form.ttsEnabled,
         systemPrompt: form.employeePrompt,
         qualificationPrompt: form.qualificationPrompt,
-        evolutionBaseUrl: form.evolutionBaseUrl,
-        evolutionInstance: form.evolutionInstance,
-        evolutionWebhookSecret: form.evolutionWebhookSecret,
         appPublicUrl: form.appPublicUrl,
       };
       if (form.openAiApiKey && form.openAiApiKey.startsWith('sk-') && !form.openAiApiKey.includes('••••')) {
         payload.openaiApiKey = form.openAiApiKey;
-      }
-      if (form.evolutionApiKey && !form.evolutionApiKey.includes('••••')) {
-        payload.evolutionApiKey = form.evolutionApiKey;
       }
       const data = await saveSettings(payload);
       const s = data.settings ?? {};
@@ -125,12 +109,7 @@ export default function VoiceAISettingsView({ embedded = false }) {
         employeePrompt: data.systemPrompt ?? s.employeePrompt ?? prev.employeePrompt,
         qualificationPrompt: s.qualificationPrompt ?? prev.qualificationPrompt,
         openAiKeyConfigured: data.openaiApiKeyConfigured ?? s.openAiKeyConfigured ?? prev.openAiKeyConfigured,
-        evolutionApiKeyConfigured: s.evolutionApiKeyConfigured ?? prev.evolutionApiKeyConfigured,
         openAiApiKey: data.openaiApiKey ?? s.openAiKeyMasked ?? prev.openAiApiKey,
-        evolutionApiKey: s.evolutionApiKeyMasked ?? prev.evolutionApiKey,
-        evolutionBaseUrl: s.evolutionBaseUrl ?? prev.evolutionBaseUrl,
-        evolutionInstance: s.evolutionInstance ?? prev.evolutionInstance,
-        evolutionWebhookSecret: s.evolutionWebhookSecret ?? prev.evolutionWebhookSecret,
         appPublicUrl: s.appPublicUrl ?? prev.appPublicUrl,
       }));
       setToast(data.message ?? 'تم حفظ البرومبت والإعدادات بنجاح');

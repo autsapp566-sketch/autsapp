@@ -4,7 +4,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { env } from './config/env.js';
 import authRoutes from './routes/auth.js';
-import webhookRoutes from './routes/webhook.js';
 import greenApiWebhookRoutes from './routes/greenApiWebhook.js';
 import leadsRoutes from './routes/leads.js';
 import whatsappInstancesRoutes from './routes/whatsappInstances.js';
@@ -35,7 +34,6 @@ export function createApp() {
   });
 
   app.use('/api/auth', authRoutes);
-  app.use('/api/webhook', webhookRoutes);
   app.use('/api/webhook/green-api', greenApiWebhookRoutes);
   app.use('/api/leads', leadsRoutes);
   app.use('/api/whatsapp-instances', whatsappInstancesRoutes);

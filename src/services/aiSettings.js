@@ -71,31 +71,27 @@ export async function getAiSettings() {
 async function bootstrapIntegrationFromEnvOnce(row) {
   const envSnapshot = {
     openAiApiKey: process.env.OPENAI_API_KEY?.trim() || '',
-    evolutionBaseUrl: process.env.EVOLUTION_BASE_URL?.trim() || '',
-    evolutionApiKey: process.env.EVOLUTION_API_KEY?.trim() || '',
-    evolutionInstance: process.env.EVOLUTION_INSTANCE?.trim() || '',
-    evolutionWebhookSecret: process.env.EVOLUTION_WEBHOOK_SECRET?.trim() || '',
     appPublicUrl: process.env.APP_PUBLIC_URL?.trim() || '',
+    greenApiInstanceId: process.env.GREEN_API_INSTANCE_ID?.trim() || '',
+    greenApiToken: process.env.GREEN_API_TOKEN?.trim() || '',
+    greenApiUrl: process.env.GREEN_API_URL?.trim() || '',
   };
 
   const patch = {};
   if (!row.openAiApiKey?.trim() && envSnapshot.openAiApiKey) {
     patch.openAiApiKey = envSnapshot.openAiApiKey;
   }
-  if (!row.evolutionBaseUrl?.trim() && envSnapshot.evolutionBaseUrl) {
-    patch.evolutionBaseUrl = envSnapshot.evolutionBaseUrl;
-  }
-  if (!row.evolutionApiKey?.trim() && envSnapshot.evolutionApiKey) {
-    patch.evolutionApiKey = envSnapshot.evolutionApiKey;
-  }
-  if (!row.evolutionInstance?.trim() && envSnapshot.evolutionInstance) {
-    patch.evolutionInstance = envSnapshot.evolutionInstance;
-  }
-  if (!row.evolutionWebhookSecret?.trim() && envSnapshot.evolutionWebhookSecret) {
-    patch.evolutionWebhookSecret = envSnapshot.evolutionWebhookSecret;
-  }
   if (!row.appPublicUrl?.trim() && envSnapshot.appPublicUrl) {
     patch.appPublicUrl = envSnapshot.appPublicUrl;
+  }
+  if (!row.greenApiInstanceId?.trim() && envSnapshot.greenApiInstanceId) {
+    patch.greenApiInstanceId = envSnapshot.greenApiInstanceId;
+  }
+  if (!row.greenApiToken?.trim() && envSnapshot.greenApiToken) {
+    patch.greenApiToken = envSnapshot.greenApiToken;
+  }
+  if (!row.greenApiUrl?.trim() && envSnapshot.greenApiUrl) {
+    patch.greenApiUrl = envSnapshot.greenApiUrl;
   }
 
   if (Object.keys(patch).length === 0) {
@@ -114,7 +110,7 @@ export async function getEffectiveSystemPrompt() {
 }
 
 /**
- * @param {Partial<{ openAiApiKey: string, evolutionBaseUrl: string, evolutionApiKey: string, evolutionInstance: string, evolutionWebhookSecret: string, appPublicUrl: string, textModel: string, sttEnabled: boolean, ttsEnabled: boolean, ttsVoice: string, employeePrompt: string, qualificationPrompt: string, systemPrompt: string }>} input
+ * @param {Partial<{ openAiApiKey: string, appPublicUrl: string, greenApiInstanceId: string, greenApiToken: string, greenApiUrl: string, textModel: string, sttEnabled: boolean, ttsEnabled: boolean, ttsVoice: string, employeePrompt: string, qualificationPrompt: string, systemPrompt: string }>} input
  */
 export async function updateAiSettings(input) {
   const current = await getAiSettings();
@@ -134,23 +130,20 @@ export async function updateAiSettings(input) {
       data.openAiApiKey = key;
     }
   }
-  if (typeof input.evolutionBaseUrl === 'string') {
-    data.evolutionBaseUrl = input.evolutionBaseUrl.trim();
-  }
-  if (typeof input.evolutionApiKey === 'string') {
-    const key = input.evolutionApiKey.trim();
-    if (key && !key.includes('••••')) {
-      data.evolutionApiKey = key;
-    }
-  }
-  if (typeof input.evolutionInstance === 'string') {
-    data.evolutionInstance = input.evolutionInstance.trim();
-  }
-  if (typeof input.evolutionWebhookSecret === 'string') {
-    data.evolutionWebhookSecret = input.evolutionWebhookSecret.trim();
-  }
   if (typeof input.appPublicUrl === 'string') {
     data.appPublicUrl = input.appPublicUrl.trim();
+  }
+  if (typeof input.greenApiInstanceId === 'string') {
+    data.greenApiInstanceId = input.greenApiInstanceId.trim();
+  }
+  if (typeof input.greenApiToken === 'string') {
+    const token = input.greenApiToken.trim();
+    if (token && !token.includes('••••')) {
+      data.greenApiToken = token;
+    }
+  }
+  if (typeof input.greenApiUrl === 'string') {
+    data.greenApiUrl = input.greenApiUrl.trim() || null;
   }
   if (input.textModel && TEXT_MODELS.includes(input.textModel)) {
     data.textModel = input.textModel;
@@ -190,6 +183,18 @@ export async function updateAiSettings(input) {
     invalidateOpenAIClientCache();
   }
 
+  if (
+    data.greenApiInstanceId !== undefined ||
+    data.greenApiToken !== undefined ||
+    data.greenApiUrl !== undefined
+  ) {
+    const { invalidateGreenApiConfigCache, refreshGreenApiConfigCache } = await import(
+      './greenApiConfig.js'
+    );
+    invalidateGreenApiConfigCache();
+    await refreshGreenApiConfigCache();
+  }
+
   return updated;
 }
 
@@ -218,7 +223,7 @@ export function serializeSystemSettings(row) {
 
 export function serializeAiSettings(row) {
   const openAiKey = row.openAiApiKey?.trim() || '';
-  const evoKey = row.evolutionApiKey?.trim() || '';
+  const greenToken = row.greenApiToken?.trim() || '';
 
   return {
     textModel: row.textModel,
@@ -233,12 +238,10 @@ export function serializeAiSettings(row) {
     openAiApiKey: openAiKey,
     openAiKeyMasked: maskSecret(openAiKey, 'sk-'),
     openAiKeyConfigured: Boolean(openAiKey),
-    evolutionBaseUrl: row.evolutionBaseUrl ?? '',
-    evolutionApiKey: evoKey,
-    evolutionApiKeyMasked: maskSecret(evoKey),
-    evolutionApiKeyConfigured: Boolean(evoKey),
-    evolutionInstance: row.evolutionInstance ?? '',
-    evolutionWebhookSecret: row.evolutionWebhookSecret ?? '',
+    greenApiInstanceId: row.greenApiInstanceId ?? '',
+    greenApiUrl: row.greenApiUrl ?? '',
+    greenApiTokenMasked: maskSecret(greenToken),
+    greenApiConfigured: Boolean(row.greenApiInstanceId?.trim() && greenToken),
     appPublicUrl: row.appPublicUrl ?? '',
     updatedAt: row.updatedAt,
   };

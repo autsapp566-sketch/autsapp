@@ -1,5 +1,6 @@
 import { useAuth } from '../../context/AuthContext.jsx';
 import VoiceAISettingsView from '../../views/VoiceAISettingsView.jsx';
+import GreenApiSettingsView from '../../views/GreenApiSettingsView.jsx';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -25,7 +26,12 @@ export default function SettingsPage() {
         </div>
       </dl>
 
-      {isAdmin ? <VoiceAISettingsView embedded /> : null}
+      {isAdmin ? (
+        <>
+          <GreenApiSettingsView embedded />
+          <VoiceAISettingsView embedded />
+        </>
+      ) : null}
     </section>
   );
 }

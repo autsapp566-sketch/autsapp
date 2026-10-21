@@ -4,8 +4,7 @@ import { requireAgent } from '../middleware/requireAgent.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { prisma } from '../lib/prisma.js';
 import { env } from '../config/env.js';
-import { getWhatsAppProvider } from '../services/whatsappMessaging.js';
-import { resolveGreenApiConfig } from '../services/greenApiConfig.js';
+import { resolveGreenApiConfigAsync } from '../services/greenApiConfig.js';
 import {
   getQrCode,
   getStateInstance,
@@ -16,17 +15,6 @@ import {
   rebootInstance,
   resolveGreenCredentials,
 } from '../services/greenApi.js';
-import {
-  deleteEvolutionInstance,
-  fetchEvolutionInstances,
-  getEvolutionConnectionState,
-  isEvolutionMockMode,
-  normalizeConnectionState,
-} from '../services/evolutionApi.js';
-import { resolveInstanceQr } from '../services/whatsappEvolutionQr.js';
-import { resolveEvolutionConfig } from '../services/evolutionConfig.js';
-import { getAiSettings } from '../services/aiSettings.js';
-import { getEvolutionConfigFromSettings } from '../services/platformSettings.js';
 
 const router = express.Router();
 const INSTANCE_NAME_RE = /^[a-z0-9_-]{3,40}$/;
@@ -45,25 +33,12 @@ function pickGreenField(...values) {
 }
 
 /** @param {Record<string, unknown>} body */
-function parseGreenBody(body) {
-  const envCfg = resolveGreenApiConfig();
-  const greenInstanceId = pickGreenField(
-    body?.greenInstanceId,
-    body?.idInstance,
-    envCfg.instanceId
-  );
-  const greenApiToken = pickGreenField(
-    body?.greenApiToken,
-    body?.apiTokenInstance,
-    envCfg.apiToken
-  );
-  const greenApiUrl =
-    pickGreenField(body?.greenApiUrl, body?.apiUrl, envCfg.baseUrl) || null;
-
+async function parseGreenBody(body) {
+  const envCfg = await resolveGreenApiConfigAsync();
   return {
-    greenInstanceId,
-    greenApiToken,
-    greenApiUrl,
+    greenInstanceId: pickGreenField(body?.greenInstanceId, body?.idInstance, envCfg.instanceId),
+    greenApiToken: pickGreenField(body?.greenApiToken, body?.apiTokenInstance, envCfg.apiToken),
+    greenApiUrl: pickGreenField(body?.greenApiUrl, body?.apiUrl, envCfg.baseUrl) || null,
     label: typeof body?.label === 'string' ? body.label.trim() : null,
     instanceName: String(body?.instanceName ?? '')
       .trim()
@@ -77,10 +52,6 @@ function sendGreenRouteError(res, err, fallbackStatus = 502) {
     error: err.message || 'Green API request failed',
     provider: 'green-api',
   });
-}
-
-function useGreenProvider() {
-  return getWhatsAppProvider() === 'green-api';
 }
 
 function buildGreenWebhookUrl() {
@@ -114,146 +85,50 @@ function serializeGreenInstance(row, connectionState, extra = {}) {
   };
 }
 
-function serializeEvolutionInstance(row, connectionState, phoneFromEvolution, extra = {}) {
-  const mock = Boolean(extra.mock ?? isEvolutionMockMode());
-  const s = (connectionState ?? '').toLowerCase();
-  const connected = !mock && (s === 'open' || s === 'connected');
-  return {
-    id: row.id,
-    instanceName: row.instanceName,
-    label: row.label,
-    phone: row.phone ?? phoneFromEvolution ?? null,
-    provider: 'evolution',
-    isDefault: row.isDefault,
-    connectionState,
-    connected,
-    mock,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-    ...extra,
-  };
-}
-
-async function buildEvolutionWebhookUrl() {
-  const settings = await getAiSettings();
-  const { appPublicUrl, webhookSecret } = await getEvolutionConfigFromSettings(settings);
-  if (!appPublicUrl) {
-    return null;
-  }
-  return webhookSecret
-    ? `${appPublicUrl}/api/webhook/whatsapp?secret=${encodeURIComponent(webhookSecret)}`
-    : `${appPublicUrl}/api/webhook/whatsapp`;
-}
-
-function findEvolutionMeta(fetchResult, instanceName) {
-  const list = Array.isArray(fetchResult) ? fetchResult : fetchResult?.instances ?? fetchResult ?? [];
-  const item = list.find((i) => {
-    const name = i?.instanceName ?? i?.name ?? i?.instance?.instanceName;
-    return name === instanceName;
-  });
-  if (!item) {
-    return { phone: null };
-  }
-  const phone =
-    item.ownerJid?.split('@')?.[0] ??
-    item.number ??
-    item.instance?.owner ??
-    item.profileName ??
-    null;
-  return { phone: phone ? String(phone).replace(/\D/g, '') || phone : null };
-}
-
 router.use(authenticate, attachUser, requireAgent);
 
 router.get('/integration', requireAdmin, async (_req, res, next) => {
   try {
-    if (useGreenProvider()) {
-      const config = resolveGreenApiConfig();
-      return res.json({
-        provider: 'green-api',
-        configured: config.configured,
-        baseUrl: config.baseUrl || null,
-        instanceId: config.instanceId || null,
-        webhookUrl: buildGreenWebhookUrl(),
-      });
-    }
-    const config = await resolveEvolutionConfig();
+    const config = await resolveGreenApiConfigAsync();
     return res.json({
-      provider: 'evolution',
-      mock: isEvolutionMockMode(),
+      provider: 'green-api',
       configured: config.configured,
       baseUrl: config.baseUrl || null,
+      instanceId: config.instanceId || null,
       credentialSource: config.source,
+      webhookUrl: buildGreenWebhookUrl(),
     });
   } catch (err) {
     next(err);
   }
 });
 
-router.get('/', async (req, res, next) => {
+router.get('/', async (_req, res, next) => {
   try {
     const rows = await prisma.whatsAppInstance.findMany({ orderBy: { createdAt: 'desc' } });
-
-    if (useGreenProvider()) {
-      const instances = await Promise.all(
-        rows.map(async (row) => {
-          const creds = resolveGreenCredentials(row);
-          let connectionState = 'unknown';
-          let connectionError;
-          try {
-            if (creds.configured) {
-              const { state } = await getStateInstance(creds);
-              connectionState = state;
-            } else {
-              connectionState = 'notConfigured';
-              connectionError =
-                'Instance ID أو API Token ناقص — استخدم apiTokenInstance (ليس Admin token) أو .env';
-            }
-          } catch (err) {
-            connectionState = 'unreachable';
-            connectionError =
-              err?.message ??
-              'تعذر الاتصال بـ Green API — تحقق من Token و URL';
-          }
-          return serializeGreenInstance(row, connectionState, {
-            connectionError,
-          });
-        })
-      );
-      return res.json({ provider: 'green-api', instances });
-    }
-
-    let evolutionList = [];
-    try {
-      evolutionList = await fetchEvolutionInstances();
-    } catch {
-      evolutionList = [];
-    }
-
     const instances = await Promise.all(
       rows.map(async (row) => {
+        const creds = resolveGreenCredentials(row);
         let connectionState = 'unknown';
+        let connectionError;
         try {
-          const stateRaw = await getEvolutionConnectionState(row.instanceName);
-          connectionState = normalizeConnectionState(stateRaw);
-        } catch {
+          if (creds.configured) {
+            const { state } = await getStateInstance(creds);
+            connectionState = state;
+          } else {
+            connectionState = 'notConfigured';
+            connectionError =
+              'Instance ID أو API Token ناقص — استخدم apiTokenInstance (ليس Admin token) أو .env';
+          }
+        } catch (err) {
           connectionState = 'unreachable';
+          connectionError =
+            err?.message ?? 'تعذر الاتصال بـ Green API — تحقق من Token و URL';
         }
-        const meta = findEvolutionMeta(evolutionList, row.instanceName);
-        if (meta.phone && meta.phone !== row.phone) {
-          await prisma.whatsAppInstance.update({
-            where: { id: row.id },
-            data: { phone: meta.phone },
-          });
-          row.phone = meta.phone;
-        }
-        return serializeEvolutionInstance(row, connectionState, meta.phone, {
-          mock: isEvolutionMockMode(),
-        });
+        return serializeGreenInstance(row, connectionState, { connectionError });
       })
     );
-
-    res.json({ provider: 'evolution', instances, mock: isEvolutionMockMode() });
+    return res.json({ provider: 'green-api', instances });
   } catch (err) {
     next(err);
   }
@@ -261,174 +136,117 @@ router.get('/', async (req, res, next) => {
 
 router.post('/', requireAdmin, async (req, res, next) => {
   try {
-    if (useGreenProvider()) {
-      const parsed = parseGreenBody(req.body ?? {});
-      const envCfg = resolveGreenApiConfig();
-      const finalId = parsed.greenInstanceId;
-      let finalToken = parsed.greenApiToken;
-      const greenApiUrl = parsed.greenApiUrl;
-      const label = parsed.label;
+      const parsed = await parseGreenBody(req.body ?? {});
+      const envCfg = await resolveGreenApiConfigAsync();
+    const finalId = parsed.greenInstanceId;
+    let finalToken = parsed.greenApiToken;
+    const greenApiUrl = parsed.greenApiUrl;
+    const label = parsed.label;
 
-      if (!finalId || !finalToken) {
-        return res.status(400).json({
-          error: 'Green API: Instance ID (idInstance) و API Token (apiTokenInstance) مطلوبان أو .env',
-          provider: 'green-api',
-        });
-      }
-
-      let instanceName = parsed.instanceName;
-      if (!instanceName) {
-        instanceName = `green-${finalId}`.toLowerCase().replace(/[^a-z0-9_-]/g, '-').slice(0, 40);
-      }
-      if (!INSTANCE_NAME_RE.test(instanceName)) {
-        return res.status(400).json({
-          error: 'اسم داخلي: 3-40 حرف (a-z, 0-9, _ أو -)',
-        });
-      }
-
-      const existingGreen = await prisma.whatsAppInstance.findFirst({
-        where: { greenInstanceId: finalId },
-      });
-      if (existingGreen && existingGreen.instanceName !== instanceName) {
-        return res.status(409).json({ error: 'هذا Instance ID مسجّل مسبقاً' });
-      }
-
-      let row = await prisma.whatsAppInstance.findUnique({ where: { instanceName } });
-
-      if (!finalToken && row?.greenApiToken?.trim()) {
-        finalToken = row.greenApiToken.trim();
-      }
-      if (!finalToken) {
-        finalToken = envCfg.apiToken;
-      }
-
-      if (!finalId || !finalToken) {
-        return res.status(400).json({
-          error:
-            'Green API: Instance ID و apiTokenInstance مطلوبان (من لوحة Green API، ليس Admin token) أو عرّفهما في .env',
-          provider: 'green-api',
-        });
-      }
-
-      const credsProbe = resolveGreenCredentials({
-        greenInstanceId: finalId,
-        greenApiToken: finalToken,
-        greenApiUrl: greenApiUrl ?? envCfg.baseUrl,
-      });
-      let probedState;
-      try {
-        probedState = await getStateInstance(credsProbe);
-      } catch (err) {
-        return sendGreenRouteError(res, err, 400);
-      }
-
-      const count = await prisma.whatsAppInstance.count();
-      const data = {
-        instanceName,
-        label: label || `Green ${finalId}`,
-        provider: 'green',
-        greenInstanceId: finalId,
-        greenApiToken: finalToken,
-        greenApiUrl: greenApiUrl ?? envCfg.baseUrl,
-        isDefault: count === 0 && !row,
-      };
-
-      if (!row) {
-        row = await prisma.whatsAppInstance.create({ data });
-      } else {
-        row = await prisma.whatsAppInstance.update({
-          where: { id: row.id },
-          data: {
-            label: data.label,
-            greenInstanceId: finalId,
-            greenApiToken: finalToken,
-            greenApiUrl: data.greenApiUrl,
-            provider: 'green',
-          },
-        });
-      }
-
-      const creds = resolveGreenCredentials(row);
-      let qr = { base64: null, pairingCode: null, message: null };
-      const connectionState = probedState.state;
-      let message;
-
-      try {
-        if (!isGreenConnectedState(connectionState)) {
-          qr = await getQrCode(creds);
-          message = qr.message ?? undefined;
-        } else {
-          message = 'Instance already authorized — WhatsApp is connected.';
-        }
-      } catch (err) {
-        return sendGreenRouteError(res, err);
-      }
-
-      return res.status(201).json({
+    if (!finalId || !finalToken) {
+      return res.status(400).json({
+        error: 'Green API: Instance ID (idInstance) و API Token (apiTokenInstance) مطلوبان أو .env',
         provider: 'green-api',
-        instance: serializeGreenInstance(row, connectionState),
-        qr,
-        qrcode: qr.base64,
-        connected: isGreenConnectedState(connectionState),
-        simulationMode: false,
-        message,
-        webhookUrl: buildGreenWebhookUrl(),
       });
     }
 
-    let instanceName = String(req.body?.instanceName ?? '')
-      .trim()
-      .toLowerCase();
+    let instanceName = parsed.instanceName;
     if (!instanceName) {
-      instanceName = `shop-${Date.now().toString(36).slice(-8)}`;
+      instanceName = `green-${finalId}`.toLowerCase().replace(/[^a-z0-9_-]/g, '-').slice(0, 40);
     }
-    const label = typeof req.body?.label === 'string' ? req.body.label.trim() : null;
-
     if (!INSTANCE_NAME_RE.test(instanceName)) {
       return res.status(400).json({
-        error: 'اسم ال instance: 3-40 حرف (a-z, 0-9, _ أو -)',
+        error: 'اسم داخلي: 3-40 حرف (a-z, 0-9, _ أو -)',
       });
+    }
+
+    const existingGreen = await prisma.whatsAppInstance.findFirst({
+      where: { greenInstanceId: finalId },
+    });
+    if (existingGreen && existingGreen.instanceName !== instanceName) {
+      return res.status(409).json({ error: 'هذا Instance ID مسجّل مسبقاً' });
     }
 
     let row = await prisma.whatsAppInstance.findUnique({ where: { instanceName } });
-    let createdNew = false;
-    const webhookUrl = await buildEvolutionWebhookUrl();
 
-    if (!row) {
-      createdNew = true;
-      const count = await prisma.whatsAppInstance.count();
-      row = await prisma.whatsAppInstance.create({
-        data: {
-          instanceName,
-          label: label || instanceName,
-          provider: 'evolution',
-          isDefault: count === 0,
-        },
-      });
-    } else if (label) {
-      row = await prisma.whatsAppInstance.update({
-        where: { id: row.id },
-        data: { label },
+    if (!finalToken && row?.greenApiToken?.trim()) {
+      finalToken = row.greenApiToken.trim();
+    }
+    if (!finalToken) {
+      finalToken = envCfg.apiToken;
+    }
+
+    if (!finalId || !finalToken) {
+      return res.status(400).json({
+        error:
+          'Green API: Instance ID و apiTokenInstance مطلوبان (من لوحة Green API، ليس Admin token) أو عرّفهما في .env',
+        provider: 'green-api',
       });
     }
 
-    const { qr, simulationMode, message } = await resolveInstanceQr(instanceName, webhookUrl, {
-      skipCreate: !createdNew,
+    const credsProbe = resolveGreenCredentials({
+      greenInstanceId: finalId,
+      greenApiToken: finalToken,
+      greenApiUrl: greenApiUrl ?? envCfg.baseUrl,
     });
+    let probedState;
+    try {
+      probedState = await getStateInstance(credsProbe);
+    } catch (err) {
+      return sendGreenRouteError(res, err, 400);
+    }
 
-    const mock = isEvolutionMockMode() || simulationMode;
-    const connectionState = simulationMode ? 'simulation' : qr?.base64 ? 'connecting' : 'unreachable';
+    const count = await prisma.whatsAppInstance.count();
+    const data = {
+      instanceName,
+      label: label || `Green ${finalId}`,
+      provider: 'green',
+      greenInstanceId: finalId,
+      greenApiToken: finalToken,
+      greenApiUrl: greenApiUrl ?? envCfg.baseUrl,
+      isDefault: count === 0 && !row,
+    };
 
-    res.status(createdNew ? 201 : 200).json({
-      provider: 'evolution',
-      instance: serializeEvolutionInstance(row, connectionState, row.phone, { mock }),
+    if (!row) {
+      row = await prisma.whatsAppInstance.create({ data });
+    } else {
+      row = await prisma.whatsAppInstance.update({
+        where: { id: row.id },
+        data: {
+          label: data.label,
+          greenInstanceId: finalId,
+          greenApiToken: finalToken,
+          greenApiUrl: data.greenApiUrl,
+          provider: 'green',
+        },
+      });
+    }
+
+    const creds = resolveGreenCredentials(row);
+    let qr = { base64: null, pairingCode: null, message: null };
+    const connectionState = probedState.state;
+    let message;
+
+    try {
+      if (!isGreenConnectedState(connectionState)) {
+        qr = await getQrCode(creds);
+        message = qr.message ?? undefined;
+      } else {
+        message = 'Instance already authorized — WhatsApp is connected.';
+      }
+    } catch (err) {
+      return sendGreenRouteError(res, err);
+    }
+
+    return res.status(201).json({
+      provider: 'green-api',
+      instance: serializeGreenInstance(row, connectionState),
       qr,
-      qrcode: qr?.base64 ?? null,
-      connected: false,
-      mock,
-      simulationMode,
-      message: message ?? undefined,
-      webhookConfigured: Boolean(webhookUrl),
+      qrcode: qr.base64,
+      connected: isGreenConnectedState(connectionState),
+      simulationMode: false,
+      message,
+      webhookUrl: buildGreenWebhookUrl(),
     });
   } catch (err) {
     next(err);
@@ -474,55 +292,37 @@ router.get('/:id/connect', requireAdmin, async (req, res, next) => {
       return res.status(404).json({ error: 'Instance not found' });
     }
 
-    if (useGreenProvider()) {
-      const creds = resolveGreenCredentials(row);
-      try {
-        const { state } = await getStateInstance(creds);
-        if (isGreenConnectedState(state)) {
-          return res.json({
-            provider: 'green-api',
-            qr: { base64: null },
-            qrcode: null,
-            instanceName: row.instanceName,
-            greenInstanceId: row.greenInstanceId,
-            connectionState: state,
-            connected: true,
-            simulationMode: false,
-            message: 'Instance already authorized — no QR required.',
-          });
-        }
-        const qr = await getQrCode(creds);
+    const creds = resolveGreenCredentials(row);
+    try {
+      const { state } = await getStateInstance(creds);
+      if (isGreenConnectedState(state)) {
         return res.json({
           provider: 'green-api',
-          qr,
-          qrcode: qr.base64,
+          qr: { base64: null },
+          qrcode: null,
           instanceName: row.instanceName,
           greenInstanceId: row.greenInstanceId,
           connectionState: state,
-          connected: false,
+          connected: true,
           simulationMode: false,
-          message: qr.message ?? undefined,
+          message: 'Instance already authorized — no QR required.',
         });
-      } catch (err) {
-        return sendGreenRouteError(res, err);
       }
+      const qr = await getQrCode(creds);
+      return res.json({
+        provider: 'green-api',
+        qr,
+        qrcode: qr.base64,
+        instanceName: row.instanceName,
+        greenInstanceId: row.greenInstanceId,
+        connectionState: state,
+        connected: false,
+        simulationMode: false,
+        message: qr.message ?? undefined,
+      });
+    } catch (err) {
+      return sendGreenRouteError(res, err);
     }
-
-    const webhookUrl = await buildEvolutionWebhookUrl();
-    const { qr, simulationMode, message } = await resolveInstanceQr(row.instanceName, webhookUrl, {
-      skipCreate: true,
-    });
-
-    res.json({
-      provider: 'evolution',
-      qr,
-      qrcode: qr?.base64 ?? null,
-      instanceName: row.instanceName,
-      connected: false,
-      mock: isEvolutionMockMode() || simulationMode,
-      simulationMode,
-      message: message ?? undefined,
-    });
   } catch (err) {
     next(err);
   }
@@ -535,50 +335,26 @@ router.get('/:id/status', async (req, res, next) => {
       return res.status(404).json({ error: 'Instance not found' });
     }
 
-    if (useGreenProvider()) {
-      const creds = resolveGreenCredentials(row);
-      try {
-        const { state, raw } = await getStateInstance(creds);
-        return res.json({
-          provider: 'green-api',
-          instanceName: row.instanceName,
-          greenInstanceId: row.greenInstanceId,
-          connectionState: state,
-          connected: isGreenConnectedState(state),
-          mock: false,
-          simulationMode: false,
-          raw,
-        });
-      } catch (err) {
-        return res.json({
-          provider: 'green-api',
-          instanceName: row.instanceName,
-          connectionState: 'unreachable',
-          connected: false,
-          message: err.message,
-        });
-      }
-    }
-
-    const config = await resolveEvolutionConfig();
+    const creds = resolveGreenCredentials(row);
     try {
-      const stateRaw = await getEvolutionConnectionState(row.instanceName);
-      const connectionState = normalizeConnectionState(stateRaw);
+      const { state, raw } = await getStateInstance(creds);
       return res.json({
-        provider: 'evolution',
+        provider: 'green-api',
         instanceName: row.instanceName,
-        connectionState,
-        connected: ['open', 'connected'].includes(connectionState),
-        mock: isEvolutionMockMode(),
-        raw: stateRaw,
+        greenInstanceId: row.greenInstanceId,
+        connectionState: state,
+        connected: isGreenConnectedState(state),
+        mock: false,
+        simulationMode: false,
+        raw,
       });
-    } catch {
+    } catch (err) {
       return res.json({
-        provider: 'evolution',
+        provider: 'green-api',
         instanceName: row.instanceName,
         connectionState: 'unreachable',
         connected: false,
-        mock: isEvolutionMockMode() || !config.configured,
+        message: err.message,
       });
     }
   } catch (err) {
@@ -588,9 +364,6 @@ router.get('/:id/status', async (req, res, next) => {
 
 router.post('/:id/logout', requireAdmin, async (req, res, next) => {
   try {
-    if (!useGreenProvider()) {
-      return res.status(400).json({ error: 'Logout supported for Green API only' });
-    }
     const row = await prisma.whatsAppInstance.findUnique({ where: { id: req.params.id } });
     if (!row) {
       return res.status(404).json({ error: 'Instance not found' });
@@ -606,9 +379,6 @@ router.post('/:id/logout', requireAdmin, async (req, res, next) => {
 
 router.post('/:id/reboot', requireAdmin, async (req, res, next) => {
   try {
-    if (!useGreenProvider()) {
-      return res.status(400).json({ error: 'Reboot supported for Green API only' });
-    }
     const row = await prisma.whatsAppInstance.findUnique({ where: { id: req.params.id } });
     if (!row) {
       return res.status(404).json({ error: 'Instance not found' });
@@ -649,14 +419,6 @@ router.delete('/:id', requireAdmin, async (req, res, next) => {
     const row = await prisma.whatsAppInstance.findUnique({ where: { id: req.params.id } });
     if (!row) {
       return res.status(404).json({ error: 'Instance not found' });
-    }
-
-    if (!useGreenProvider()) {
-      try {
-        await deleteEvolutionInstance(row.instanceName);
-      } catch {
-        /* ignore */
-      }
     }
 
     await prisma.whatsAppInstance.delete({ where: { id: row.id } });

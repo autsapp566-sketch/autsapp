@@ -1,5 +1,12 @@
+import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
+
+dotenv.config();
+// Pooler (6543) breaks upsert/seed — use direct 5432 when available.
+if (process.env.DIRECT_URL?.trim()) {
+  process.env.DATABASE_URL = process.env.DIRECT_URL.trim();
+}
 
 const prisma = new PrismaClient();
 

@@ -2,16 +2,8 @@ import { getAiSettings, updateAiSettings, serializeAiSettings } from './aiSettin
 
 export { getAiSettings, updateAiSettings, serializeAiSettings };
 
-/** @param {import('@prisma/client').AiSettings} row */
-export async function getEvolutionConfigFromSettings(row) {
+/** @param {import('@prisma/client').AiSettings} [row] */
+export async function getAppPublicUrlFromSettings(row) {
   const settings = row ?? (await getAiSettings());
-  const baseUrl = settings.evolutionBaseUrl?.trim().replace(/\/$/, '') || '';
-  const apiKey = settings.evolutionApiKey?.trim() || '';
-  return {
-    baseUrl,
-    apiKey,
-    instance: settings.evolutionInstance?.trim() || '',
-    webhookSecret: settings.evolutionWebhookSecret?.trim() || '',
-    appPublicUrl: settings.appPublicUrl?.trim().replace(/\/$/, '') || '',
-  };
+  return settings.appPublicUrl?.trim().replace(/\/$/, '') || '';
 }
