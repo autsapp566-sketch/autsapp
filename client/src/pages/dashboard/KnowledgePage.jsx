@@ -9,6 +9,7 @@ import {
   uploadProductImages,
   analyzeProductImages,
 } from '../../api/client.js';
+import ColorSquarePicker from '../../components/ColorSquarePicker.jsx';
 import { hexToArabicName, swatchForColor } from '../../lib/colorNames.js';
 
 const CLOTHING_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'];
@@ -292,27 +293,27 @@ function ProductMediaFields({
             );
           })}
         </div>
-        <div className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-950 p-2">
-          <input
-            type="color"
-            value={pickerHex}
-            onChange={(e) => setPickerHex(e.target.value)}
-            title="اختر لوناً من لوحة التدرج"
-            className="h-9 w-12 shrink-0 cursor-pointer rounded-lg border border-slate-600 bg-transparent p-0.5"
-          />
-          <span className="min-w-0 flex-1 truncate text-xs text-slate-300">
-            🎨 {hexToArabicName(pickerHex)}
-            <span dir="ltr" className="mr-2 text-slate-500">
-              {pickerHex}
+        <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-950 p-3">
+          <ColorSquarePicker value={pickerHex} onChange={setPickerHex} />
+          <div className="flex items-center gap-2">
+            <span
+              className="h-9 w-9 shrink-0 rounded-lg border border-slate-600"
+              style={{ backgroundColor: pickerHex }}
+            />
+            <span className="min-w-0 flex-1 truncate text-xs text-slate-300">
+              🎨 {hexToArabicName(pickerHex)}
+              <span dir="ltr" className="mr-2 text-slate-500">
+                {pickerHex}
+              </span>
             </span>
-          </span>
-          <button
-            type="button"
-            onClick={addPickedColor}
-            className="shrink-0 rounded-lg bg-violet-600 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-500"
-          >
-            إضافة اللون
-          </button>
+            <button
+              type="button"
+              onClick={addPickedColor}
+              className="shrink-0 rounded-lg bg-violet-600 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-500"
+            >
+              إضافة اللون
+            </button>
+          </div>
         </div>
         <div className="flex gap-2">
           <input
