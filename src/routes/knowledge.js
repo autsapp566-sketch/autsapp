@@ -11,6 +11,7 @@ import {
 } from '../services/knowledgeBase.js';
 import { uploadProductImages } from '../middleware/productUpload.js';
 import { saveUploadedImage } from '../services/uploadedImages.js';
+import { analyzeProductImages } from '../services/productVision.js';
 
 const router = express.Router();
 
@@ -43,6 +44,19 @@ router.post('/upload-images', requireAdmin, (req, res, next) => {
       next(saveErr);
     }
   });
+});
+
+/** Fill title / description / colors from product photos (OpenAI vision). */
+router.post('/analyze-images', requireAdmin, async (req, res, next) => {
+  try {
+    const result = await analyzeProductImages(req.body?.imageUrls);
+    res.json(result);
+  } catch (err) {
+    if (!err.status) {
+      err.expose = true;
+    }
+    next(err);
+  }
 });
 
 router.get('/', async (req, res, next) => {
