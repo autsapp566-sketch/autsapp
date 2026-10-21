@@ -3,22 +3,21 @@ import path from 'path';
 import multer from 'multer';
 import { getProductUploadDir } from '../lib/uploadDir.js';
 
-export const PRODUCT_UPLOAD_DIR = getProductUploadDir();
-
-function ensureProductUploadDir() {
+function ensureProductUploadDir(dir) {
   try {
-    if (!fs.existsSync(PRODUCT_UPLOAD_DIR)) {
-      fs.mkdirSync(PRODUCT_UPLOAD_DIR, { recursive: true });
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
     }
   } catch (err) {
-    console.warn('[uploads] could not create dir', PRODUCT_UPLOAD_DIR, err?.message);
+    console.warn('[uploads] could not create dir', dir, err?.message);
   }
 }
 
 const storage = multer.diskStorage({
   destination(_req, _file, cb) {
-    ensureProductUploadDir();
-    cb(null, PRODUCT_UPLOAD_DIR);
+    const dir = getProductUploadDir();
+    ensureProductUploadDir(dir);
+    cb(null, dir);
   },
   filename(_req, file, cb) {
     const ext = path.extname(file.originalname || '').toLowerCase() || '.jpg';

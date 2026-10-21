@@ -12,6 +12,21 @@ shell.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+/** After rewrite to `/api`, req.url may be `/`, `/health`, `/api`, or `/api/health`. */
+function requestPath(req) {
+  let p = (req.url ?? '/').split('?')[0];
+  if (p.startsWith('/api/')) {
+    p = `/${p.slice(5)}`.replace(/\/+/g, '/') || '/';
+  } else if (p === '/api') {
+    p = '/';
+  }
+  return p;
+}
+
+function isShellPath(p) {
+  return p === '/' || p === '/health';
+}
+
 let fullAppPromise = null;
 
 function getFullApp() {
@@ -21,11 +36,15 @@ function getFullApp() {
   return fullAppPromise;
 }
 
-/** @type {import('@vercel/node').VercelRequestHandler} */
 export default function handler(req, res) {
-  const pathname = (req.url ?? '/').split('?')[0];
+  const path = requestPath(req);
 
-  if (pathname === '/' || pathname === '/health') {
+  if (isShellPath(path)) {
+    if (path === '/health') {
+      req.url = '/health';
+    } else {
+      req.url = '/';
+    }
     return shell(req, res);
   }
 

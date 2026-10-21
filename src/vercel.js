@@ -1,5 +1,5 @@
-import { createApp } from './app.js';
-
-/** Vercel serverless entry — no server.listen(), no Socket.IO. */
-const app = createApp();
-export default app;
+/**
+ * @deprecated Vercel entry is `api/index.js` only.
+ * Kept so old imports fail clearly — no default export (Vercel rejects non-handler defaults).
+ */
+export { createApp } from './app.js';

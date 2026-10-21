@@ -16,8 +16,9 @@ export function isServerlessRuntime() {
 }
 
 export function getProductUploadDir() {
-  if (isServerlessRuntime()) {
+  const localDir = path.join(__dirname, '../../uploads/products');
+  if (isServerlessRuntime() || localDir.startsWith('/var/task')) {
     return '/tmp/uploads/products';
   }
-  return path.join(__dirname, '../../uploads/products');
+  return localDir;
 }
