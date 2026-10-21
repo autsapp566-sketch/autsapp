@@ -44,6 +44,7 @@ export function parseGreenApiWebhook(body) {
   const typeMessage = messageData.typeMessage;
 
   let text = '';
+  let isEdited = false;
   if (typeMessage === 'audioMessage') {
     const file = messageData.fileMessageData ?? {};
     if (!file.downloadUrl) {
@@ -74,6 +75,10 @@ export function parseGreenApiWebhook(body) {
       '';
   } else if (typeMessage === 'quotedMessage') {
     text = messageData.quotedMessage?.textMessage ?? '';
+  } else if (typeMessage === 'editedMessage') {
+    // Customer edited a message: handle the new text like a fresh message (flagged as edited).
+    text = messageData.editedMessageData?.textMessage ?? '';
+    isEdited = true;
   } else {
     return null;
   }
@@ -94,6 +99,7 @@ export function parseGreenApiWebhook(body) {
     remoteJid: chatId,
     phone: phoneFromGreenChatId(chatId),
     text,
+    isEdited,
     pushName: pushName ? String(pushName) : null,
     idMessage: body.idMessage ? String(body.idMessage) : null,
     instanceId: body.instanceData?.idInstance != null ? String(body.instanceData.idInstance) : null,

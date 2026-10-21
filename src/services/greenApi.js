@@ -239,6 +239,7 @@ export async function setGreenWebhook(creds, webhookUrl) {
       webhookUrl,
       webhookUrlToken: '',
       incomingWebhook: 'yes',
+      editedMessageWebhook: 'yes',
       outgoingWebhook: 'no',
       outgoingMessageWebhook: 'no',
       outgoingAPIMessageWebhook: 'no',

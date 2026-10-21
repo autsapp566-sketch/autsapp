@@ -50,6 +50,7 @@ router.post('/', async (req, res, next) => {
       pushName: parsed.pushName,
       instance: parsed.instanceId ?? 'green-api',
       isVoiceNote: false,
+      isEdited: Boolean(parsed.isEdited),
     };
 
     if (parsed.audio) {

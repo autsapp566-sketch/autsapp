@@ -80,12 +80,17 @@ function resolveLeadStatus(aiStatus, currentStatus, aiPaused) {
  *   pushName: string | null,
  *   instance: string,
  *   isVoiceNote?: boolean,
+ *   isEdited?: boolean,
  * }} input
  */
 export async function processIncomingWhatsAppMessage(input) {
   const lead = await findOrCreateLead(input.phone, input.pushName);
 
-  const userContent = input.isVoiceNote ? `[رسالة صوتية] ${input.text}` : input.text;
+  const userContent = input.isVoiceNote
+    ? `[رسالة صوتية] ${input.text}`
+    : input.isEdited
+      ? `✏️ (رسالة معدّلة) ${input.text}`
+      : input.text;
 
   const userMessage = await prisma.message.create({
     data: {
