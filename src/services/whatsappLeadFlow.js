@@ -1,6 +1,7 @@
 import { qualifyLead } from './aiQualifier.js';
 import { isLeadAiPaused } from './leadTakeover.js';
-import { sendWhatsAppAudio, sendWhatsAppText } from './whatsappMessaging.js';
+import { sendWhatsAppAudio, sendWhatsAppImage, sendWhatsAppText } from './whatsappMessaging.js';
+import { extractImagesFromBotText, fileNameForImageUrl } from '../lib/botImages.js';
 import { getAiSettings } from './aiSettings.js';
 import { synthesizeWhatsAppSpeech } from './voiceAi.js';
 import { broadcastLeadUpdated, broadcastMessageCreated, notifyLeadQualified } from './notifications.js';
@@ -121,11 +122,15 @@ export async function processIncomingWhatsAppMessage(input) {
     },
   });
 
+  // Image links in the reply are sent as real WhatsApp images, never as raw URLs.
+  const { text: replyText, imageUrls } = extractImagesFromBotText(qualification.botResponse);
+  const outboundText = replyText || (imageUrls.length ? 'تفضل الصور 👇' : qualification.botResponse);
+
   const botMessage = await prisma.message.create({
     data: {
       leadId: lead.id,
       sender: 'BOT',
-      content: qualification.botResponse,
+      content: imageUrls.length ? `${outboundText}\n📷 (${imageUrls.length} صور)` : outboundText,
     },
   });
   broadcastMessageCreated(updatedLead, botMessage);
@@ -136,13 +141,27 @@ export async function processIncomingWhatsAppMessage(input) {
   await sendWhatsAppText({
     remoteJid: input.remoteJid,
     phone: input.phone,
-    text: qualification.botResponse,
+    text: outboundText,
     instance: input.instance,
   });
 
+  for (const imageUrl of imageUrls) {
+    try {
+      await sendWhatsAppImage({
+        remoteJid: input.remoteJid,
+        phone: input.phone,
+        imageUrl,
+        fileName: fileNameForImageUrl(imageUrl),
+        instance: input.instance,
+      });
+    } catch (err) {
+      console.error('[whatsapp] image send failed:', imageUrl, err.message);
+    }
+  }
+
   if (aiSettings.ttsEnabled) {
     try {
-      const audioBuffer = await synthesizeWhatsAppSpeech(qualification.botResponse);
+      const audioBuffer = await synthesizeWhatsAppSpeech(outboundText);
       if (audioBuffer) {
         await sendWhatsAppAudio({
           phone: input.phone,
