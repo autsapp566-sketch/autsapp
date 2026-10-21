@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  CONFIRMATION_AGENT
+}
+
+enum LeadStatus {
+  NEW
+  QUALIFYING
+  QUALIFIED
+  REJECTED
+  HANDED_OFF
+}
+
+enum MessageSender {
+  USER
+  BOT
+  AGENT
+}
+
+enum KnowledgeItemType {
+  PRODUCT
+  FAQ
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      UserRole @default(CONFIRMATION_AGENT)
+  createdAt DateTime @default(now())
+
+  assignedLeads Lead[] @relation("LeadAssignee")
+}
+
+model AiSettings {
+  id                     String   @id @default("default")
+  openAiApiKey           String?
+  evolutionBaseUrl       String?
+  evolutionApiKey        String?
+  evolutionInstance      String?
+  evolutionWebhookSecret String?
+  appPublicUrl           String?
+  textModel              String   @default("gpt-4o-mini")
+  sttEnabled     Boolean  @default(true)
+  ttsEnabled     Boolean  @default(false)
+  ttsVoice       String   @default("nova")
+  employeePrompt       String @default("")
+  qualificationPrompt  String @default("")
+  systemPrompt         String
+  updatedAt      DateTime @updatedAt
+}
+
+model KnowledgeItem {
+  id          String            @id @default(cuid())
+  type        KnowledgeItemType
+  title       String
+  description String            @default("")
+  answer      String            @default("")
+  priceDh     Int?
+  imageUrl    String?
+  imageUrls   String            @default("[]")
+  colors      String            @default("[]")
+  sizes       String            @default("[]")
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([type])
+  @@index([updatedAt])
+}
+
+model WhatsAppInstance {
+  id              String   @id @default(cuid())
+  instanceName    String   @unique
+  label           String?
+  phone           String?
+  provider        String   @default("green")
+  greenInstanceId String?
+  greenApiToken   String?
+  greenApiUrl     String?
+  isDefault       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([greenInstanceId])
+}
+
+model Lead {
+  id                  String     @id @default(cuid())
+  phone               String
+  name                String?
+  status              LeadStatus @default(NEW)
+  aiPaused            Boolean    @default(false)
+  qualificationScore  Int?
+  summary             String?
+  assignedToId        String?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  assignedTo User?     @relation("LeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  messages   Message[]
+
+  @@index([phone])
+  @@index([status])
+  @@index([assignedToId])
+}
+
+model Message {
+  id        String        @id @default(cuid())
+  leadId    String
+  sender    MessageSender
+  content   String
+  createdAt DateTime      @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([createdAt])
+}
