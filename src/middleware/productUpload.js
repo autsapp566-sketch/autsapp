@@ -4,11 +4,19 @@ import multer from 'multer';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const PRODUCT_UPLOAD_DIR = path.join(__dirname, '../../uploads/products');
 
-if (!fs.existsSync(PRODUCT_UPLOAD_DIR)) {
-  fs.mkdirSync(PRODUCT_UPLOAD_DIR, { recursive: true });
+/** Vercel serverless FS is read-only except `/tmp`. */
+export const PRODUCT_UPLOAD_DIR = process.env.VERCEL
+  ? '/tmp/uploads/products'
+  : path.join(__dirname, '../../uploads/products');
+
+function ensureProductUploadDir() {
+  if (!fs.existsSync(PRODUCT_UPLOAD_DIR)) {
+    fs.mkdirSync(PRODUCT_UPLOAD_DIR, { recursive: true });
+  }
 }
+
+ensureProductUploadDir();
 
 const storage = multer.diskStorage({
   destination(_req, _file, cb) {

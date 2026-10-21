@@ -1,5 +1,13 @@
 const TOKEN_KEY = 'auth_token';
 
+/** Production: set VITE_API_URL to the API deployment (e.g. https://test-wats.vercel.app). Dev uses Vite proxy. */
+const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
+
+function apiUrl(path) {
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  return API_BASE ? `${API_BASE}${normalized}` : normalized;
+}
+
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -25,9 +33,13 @@ export async function apiFetch(path, options = {}) {
 
   let response;
   try {
-    response = await fetch(path, { ...options, headers });
+    response = await fetch(apiUrl(path), { ...options, headers });
   } catch {
-    const error = new Error('تعذر الاتصال بالخادم. شغّل API: npm run dev (المنفذ 3000)');
+    const error = new Error(
+      API_BASE
+        ? 'تعذر الاتصال بالخادم. تحقق من VITE_API_URL و CORS على مشروع API.'
+        : 'تعذر الاتصال بالخادم. شغّل API: npm run dev (المنفذ 3000)'
+    );
     error.status = 0;
     throw error;
   }
@@ -36,9 +48,15 @@ export async function apiFetch(path, options = {}) {
 
   if (!response.ok) {
     const fallback =
-      response.status === 502 || response.status === 503 || response.status === 504
-        ? 'الخادم غير متاح — شغّل API في طرفية: npm run dev (منفذ 3000)'
-        : 'Request failed';
+      response.status === 404 && !API_BASE
+        ? 'المسار غير موجود — في الإنتاج عيّن VITE_API_URL على URL مشروع API'
+        : response.status === 404 && API_BASE
+          ? 'المسار غير موجود على API — تحقق من VITE_API_URL'
+          : response.status === 502 || response.status === 503 || response.status === 504
+            ? API_BASE
+              ? 'الخادم غير متاح — تحقق من deploy مشروع API'
+              : 'الخادم غير متاح — شغّل API في طرفية: npm run dev (منفذ 3000)'
+            : 'Request failed';
     const message = data.error ?? fallback;
     const error = new Error(message);
     error.status = response.status;
@@ -219,7 +237,7 @@ export async function uploadProductImages(files) {
   }
   let response;
   try {
-    response = await fetch('/api/knowledge/upload-images', { method: 'POST', headers, body: form });
+    response = await fetch(apiUrl('/api/knowledge/upload-images'), { method: 'POST', headers, body: form });
   } catch {
     throw new Error('تعذر رفع الصور — تأكد أن API يعمل');
   }

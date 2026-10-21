@@ -14,6 +14,7 @@ import knowledgeRoutes from './routes/knowledge.js';
 import analyticsRoutes from './routes/analytics.js';
 import botPlaygroundRoutes from './routes/botPlayground.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { PRODUCT_UPLOAD_DIR } from './middleware/productUpload.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -51,9 +52,7 @@ export function createApp() {
   app.use('/api/knowledge', knowledgeRoutes);
   app.use('/api/analytics', analyticsRoutes);
   app.use('/api/bot-playground', botPlaygroundRoutes);
-  const uploadDir = process.env.VERCEL ? '/tmp/uploads/products' : path.join(__dirname, '../uploads/products');
-
-  app.use('/uploads/products', express.static(uploadDir));
+  app.use('/uploads/products', express.static(PRODUCT_UPLOAD_DIR));
   app.use(errorHandler);
 
   return app;
