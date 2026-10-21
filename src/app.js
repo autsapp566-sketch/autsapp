@@ -14,7 +14,7 @@ import knowledgeRoutes from './routes/knowledge.js';
 import analyticsRoutes from './routes/analytics.js';
 import botPlaygroundRoutes from './routes/botPlayground.js';
 import { errorHandler } from './middleware/errorHandler.js';
-import { PRODUCT_UPLOAD_DIR } from './middleware/productUpload.js';
+import { getProductUploadDir } from './lib/uploadDir.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -52,7 +52,7 @@ export function createApp() {
   app.use('/api/knowledge', knowledgeRoutes);
   app.use('/api/analytics', analyticsRoutes);
   app.use('/api/bot-playground', botPlaygroundRoutes);
-  app.use('/uploads/products', express.static(PRODUCT_UPLOAD_DIR));
+  app.use('/uploads/products', express.static(getProductUploadDir()));
   app.use(errorHandler);
 
   return app;

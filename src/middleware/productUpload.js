@@ -1,25 +1,23 @@
 import fs from 'fs';
 import path from 'path';
 import multer from 'multer';
-import { fileURLToPath } from 'url';
+import { getProductUploadDir } from '../lib/uploadDir.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-/** Vercel serverless FS is read-only except `/tmp`. */
-export const PRODUCT_UPLOAD_DIR = process.env.VERCEL
-  ? '/tmp/uploads/products'
-  : path.join(__dirname, '../../uploads/products');
+export const PRODUCT_UPLOAD_DIR = getProductUploadDir();
 
 function ensureProductUploadDir() {
-  if (!fs.existsSync(PRODUCT_UPLOAD_DIR)) {
-    fs.mkdirSync(PRODUCT_UPLOAD_DIR, { recursive: true });
+  try {
+    if (!fs.existsSync(PRODUCT_UPLOAD_DIR)) {
+      fs.mkdirSync(PRODUCT_UPLOAD_DIR, { recursive: true });
+    }
+  } catch (err) {
+    console.warn('[uploads] could not create dir', PRODUCT_UPLOAD_DIR, err?.message);
   }
 }
 
-ensureProductUploadDir();
-
 const storage = multer.diskStorage({
   destination(_req, _file, cb) {
+    ensureProductUploadDir();
     cb(null, PRODUCT_UPLOAD_DIR);
   },
   filename(_req, file, cb) {
