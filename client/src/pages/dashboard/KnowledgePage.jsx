@@ -7,6 +7,7 @@ import {
   generateKnowledgeCopilot,
   updateKnowledgeItem,
   uploadProductImages,
+  analyzeProductImages,
 } from '../../api/client.js';
 
 const CLOTHING_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'];
@@ -141,7 +142,18 @@ function ProductCard({ item, onEdit, onDelete, canEdit }) {
   );
 }
 
-function ProductMediaFields({ form, setForm, uploading, onUpload, imageLink, setImageLink, colorDraft, setColorDraft }) {
+function ProductMediaFields({
+  form,
+  setForm,
+  uploading,
+  onUpload,
+  analyzing,
+  onAnalyze,
+  imageLink,
+  setImageLink,
+  colorDraft,
+  setColorDraft,
+}) {
   const imageUrls = form.imageUrls ?? [];
 
   function toggleSize(size) {
@@ -214,6 +226,16 @@ function ProductMediaFields({ form, setForm, uploading, onUpload, imageLink, set
             إضافة رابط
           </button>
         </div>
+        {imageUrls.length ? (
+          <button
+            type="button"
+            onClick={() => onAnalyze(imageUrls)}
+            disabled={analyzing || uploading}
+            className="w-full rounded-xl bg-violet-600 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+          >
+            {analyzing ? 'جاري تحليل الصور…' : '✨ تحليل الصور بالذكاء الاصطناعي (العنوان والوصف والألوان)'}
+          </button>
+        ) : null}
         {imageUrls.length ? (
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
             {imageUrls.map((url) => (
@@ -332,6 +354,7 @@ export default function KnowledgePage() {
   const [saving, setSaving] = useState(false);
   const [copilotBrief, setCopilotBrief] = useState('');
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [analyzingImages, setAnalyzingImages] = useState(false);
   const [imageLinkDraft, setImageLinkDraft] = useState('');
   const [colorDraft, setColorDraft] = useState('');
 
@@ -417,20 +440,54 @@ export default function KnowledgePage() {
     }
   }
 
+  /** Merge AI vision results into the form. Auto mode only fills empty fields. */
+  function applyImageAnalysis(result, overwrite) {
+    setForm((p) => ({
+      ...p,
+      title: overwrite || !p.title?.trim() ? result.title || p.title : p.title,
+      description: overwrite || !p.description?.trim() ? result.description || p.description : p.description,
+      colors: overwrite
+        ? result.colors.length
+          ? result.colors
+          : p.colors
+        : [...new Set([...(p.colors ?? []), ...result.colors])],
+    }));
+  }
+
+  async function analyzeImages(urls, overwrite) {
+    if (!urls.length) return;
+    setAnalyzingImages(true);
+    setError('');
+    try {
+      const result = await analyzeProductImages(urls);
+      applyImageAnalysis(result, overwrite);
+      setToast('تم تحليل الصور — راجع العنوان والوصف والألوان قبل الحفظ');
+    } catch (err) {
+      setError(err.message ?? 'تعذر تحليل الصور');
+    } finally {
+      setAnalyzingImages(false);
+    }
+  }
+
   async function handleProductImageUpload(e) {
     const files = [...(e.target.files ?? [])];
     if (!files.length) return;
     setUploadingImages(true);
     setError('');
+    let uploadedUrls = [];
     try {
       const data = await uploadProductImages(files);
       const urls = data.urls ?? [];
+      uploadedUrls = urls;
       setForm((p) => ({ ...p, imageUrls: [...new Set([...(p.imageUrls ?? []), ...urls])] }));
     } catch (err) {
       setError(err.message ?? 'تعذر رفع الصور');
     } finally {
       setUploadingImages(false);
       e.target.value = '';
+    }
+    if (uploadedUrls.length) {
+      await analyzeImages(uploadedUrls, false);
     }
   }
 
@@ -617,6 +674,8 @@ export default function KnowledgePage() {
               setForm={setForm}
               uploading={uploadingImages}
               onUpload={handleProductImageUpload}
+              analyzing={analyzingImages}
+              onAnalyze={(urls) => analyzeImages(urls, true)}
               imageLink={imageLinkDraft}
               setImageLink={setImageLinkDraft}
               colorDraft={colorDraft}
@@ -624,7 +683,7 @@ export default function KnowledgePage() {
             />
             <button
               type="submit"
-              disabled={saving || uploadingImages}
+              disabled={saving || uploadingImages || analyzingImages}
               className="w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
             >
               {saving ? 'جاري الحفظ…' : 'حفظ'}

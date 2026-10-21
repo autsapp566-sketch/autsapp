@@ -290,6 +290,13 @@ export async function uploadProductImages(files) {
   return data;
 }
 
+export function analyzeProductImages(imageUrls) {
+  return apiFetch('/api/knowledge/analyze-images', {
+    method: 'POST',
+    body: JSON.stringify({ imageUrls }),
+  });
+}
+
 export function deleteKnowledgeItem(id) {
   return apiFetch(`/api/knowledge/${id}`, { method: 'DELETE' });
 }
