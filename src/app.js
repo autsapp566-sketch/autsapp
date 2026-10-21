@@ -57,3 +57,6 @@ export function createApp() {
 
   return app;
 }
+
+/** Vercel's Express preset uses this module as the entrypoint and requires a default export. */
+export default createApp();
