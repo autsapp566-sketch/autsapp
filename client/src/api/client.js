@@ -106,6 +106,11 @@ export function toggleLeadAi(id, aiPaused) {
   });
 }
 
+export function fetchAdminAlerts(after) {
+  const qs = after ? `?after=${encodeURIComponent(after)}` : '';
+  return apiFetch(`/api/alerts${qs}`);
+}
+
 export function fetchHandoffForward() {
   return apiFetch('/api/settings/handoff-forward');
 }

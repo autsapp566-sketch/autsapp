@@ -42,11 +42,12 @@ function formatGreenHttpError(status, body, statusText) {
   }
   const quotaText = body?.correspondentsStatus?.description ?? body?.invokeStatus?.description;
   if (status === 466 || (typeof quotaText === 'string' && quotaText.trim())) {
+    const allowed = /numbers:\s*([^\s][^.]*?)\.\s/i.exec(`${quotaText ?? ''} `)?.[1];
     return (
       'حصة Green API مستنفدة: خطة Developer تسمح بالمراسلة مع 3 أرقام فقط. ' +
-      'رقّ الخطة إلى Business من console.green-api.com. ' +
-      (quotaText ?? '')
-    ).trim();
+      'رقّ الخطة إلى Business من console.green-api.com.' +
+      (allowed ? ` الأرقام المسموح بها: ${allowed.replace(/@c\.us/g, '')}` : '')
+    );
   }
   const detail = body?.message ?? body?.error ?? body?.reason;
   if (typeof detail === 'string' && detail.trim()) {
@@ -107,6 +108,9 @@ async function greenApiRequest(creds, pathSuffix, init = {}, attempt = 0) {
     const error = new Error(formatGreenHttpError(response.status, body, response.statusText));
     error.status = response.status === 429 ? 429 : 502;
     error.expose = true;
+    if (response.status === 466) {
+      error.quota = true;
+    }
     throw error;
   }
 

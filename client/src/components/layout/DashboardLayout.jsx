@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useLeadNotifications } from '../../hooks/useLeadNotifications.js';
 import { useLeadSoundAlerts } from '../../hooks/useLeadSoundAlerts.js';
+import { useAdminAlerts } from '../../hooks/useAdminAlerts.js';
 import SoundSettingsPanel from './SoundSettingsPanel.jsx';
 
 const mainNavItems = [
@@ -52,6 +53,7 @@ export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { alert, dismissAlert } = useLeadNotifications();
+  const { adminAlerts, dismissAdminAlerts } = useAdminAlerts();
   const { soundEnabled, toggleSound, prefs, setRingtone, previewRingtone, banner, dismissBanner } =
     useLeadSoundAlerts();
 
@@ -134,6 +136,33 @@ export default function DashboardLayout() {
         </header>
 
         <main className="flex-1 p-4 sm:p-6">
+          {adminAlerts.length ? (
+            <div
+              role="alert"
+              className="mb-4 space-y-2 rounded-xl border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-bold">إشعارات النظام (للمدير فقط)</p>
+                <button
+                  type="button"
+                  onClick={dismissAdminAlerts}
+                  className="rounded-lg bg-slate-800 px-3 py-1 text-xs font-medium text-amber-200"
+                >
+                  تمّ الاطلاع
+                </button>
+              </div>
+              <ul className="space-y-1.5">
+                {adminAlerts.slice(0, 3).map((a) => (
+                  <li key={a.id} className="leading-relaxed">
+                    {a.message}
+                  </li>
+                ))}
+                {adminAlerts.length > 3 ? (
+                  <li className="text-xs text-amber-200/80">+ {adminAlerts.length - 3} إشعارات أخرى</li>
+                ) : null}
+              </ul>
+            </div>
+          ) : null}
           {banner ? (
             <div
               role="alert"
