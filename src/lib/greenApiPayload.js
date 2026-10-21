@@ -44,7 +44,28 @@ export function parseGreenApiWebhook(body) {
   const typeMessage = messageData.typeMessage;
 
   let text = '';
-  if (typeMessage === 'textMessage') {
+  if (typeMessage === 'audioMessage') {
+    const file = messageData.fileMessageData ?? {};
+    if (!file.downloadUrl) {
+      return null;
+    }
+    return {
+      typeWebhook,
+      remoteJid: chatId,
+      phone: phoneFromGreenChatId(chatId),
+      text: '',
+      audio: {
+        downloadUrl: String(file.downloadUrl),
+        mimeType: String(file.mimeType ?? 'audio/ogg'),
+      },
+      pushName:
+        senderData.senderName ?? senderData.senderContactName ?? senderData.chatName ?? null,
+      idMessage: body.idMessage ? String(body.idMessage) : null,
+      instanceId:
+        body.instanceData?.idInstance != null ? String(body.instanceData.idInstance) : null,
+      isGroup: false,
+    };
+  } else if (typeMessage === 'textMessage') {
     text = messageData.textMessageData?.textMessage ?? '';
   } else if (typeMessage === 'extendedTextMessage') {
     text =
