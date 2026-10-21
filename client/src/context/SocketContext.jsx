@@ -5,12 +5,15 @@ import { useAuth } from './AuthContext.jsx';
 
 const SocketContext = createContext(null);
 
+/** A remote (serverless) API has no persistent Socket.IO server — screens fall back to polling. */
+const REALTIME_AVAILABLE = !String(import.meta.env.VITE_API_URL ?? '').trim();
+
 export function SocketProvider({ children }) {
   const { isAuthenticated, user } = useAuth();
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    if (!isAuthenticated || !user) {
+    if (!REALTIME_AVAILABLE || !isAuthenticated || !user) {
       setSocket(null);
       return undefined;
     }
@@ -20,11 +23,20 @@ export function SocketProvider({ children }) {
       path: '/socket.io',
       auth: { token },
       transports: ['websocket', 'polling'],
+      reconnectionAttempts: 3,
     });
 
-    setSocket(instance);
+    // Expose the socket only while connected so polling fallbacks stay active otherwise.
+    const handleConnect = () => setSocket(instance);
+    const handleDown = () => setSocket(null);
+    instance.on('connect', handleConnect);
+    instance.on('disconnect', handleDown);
+    instance.on('connect_error', handleDown);
 
     return () => {
+      instance.off('connect', handleConnect);
+      instance.off('disconnect', handleDown);
+      instance.off('connect_error', handleDown);
       instance.disconnect();
       setSocket(null);
     };

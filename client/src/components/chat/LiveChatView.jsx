@@ -16,7 +16,7 @@ const QUICK_REPLIES = [
 ];
 
 const FILTER_TABS = [
-  { id: 'all', label: 'الكل', statuses: ['QUALIFIED', 'HANDED_OFF', 'QUALIFYING'] },
+  { id: 'all', label: 'الكل', statuses: ['NEW', 'QUALIFYING', 'QUALIFIED', 'HANDED_OFF', 'REJECTED'] },
   { id: 'qualified', label: 'مؤهل', statuses: ['QUALIFIED'] },
   { id: 'handoff', label: 'تحت التسليم', statuses: ['HANDED_OFF'] },
   { id: 'human', label: 'تحكم بشري', statuses: ['HANDED_OFF'], humanOnly: true },
@@ -442,18 +442,25 @@ export default function LiveChatView({ title = 'محادثات مباشرة', su
 
   const activeFilter = FILTER_TABS.find((t) => t.id === filterId) ?? FILTER_TABS[0];
 
-  const loadLeads = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const data = await fetchLeads(activeFilter.statuses);
-      setLeads(data.leads);
-    } catch (err) {
-      setError(err.message ?? 'تعذر تحميل العملاء');
-    } finally {
-      setLoading(false);
-    }
-  }, [activeFilter.statuses]);
+  const loadLeads = useCallback(
+    async (silent = false) => {
+      if (!silent) {
+        setLoading(true);
+      }
+      setError('');
+      try {
+        const data = await fetchLeads(activeFilter.statuses);
+        setLeads(data.leads);
+      } catch (err) {
+        setError(err.message ?? 'تعذر تحميل العملاء');
+      } finally {
+        if (!silent) {
+          setLoading(false);
+        }
+      }
+    },
+    [activeFilter.statuses]
+  );
 
   useEffect(() => {
     loadLeads();
@@ -463,7 +470,7 @@ export default function LiveChatView({ title = 'محادثات مباشرة', su
     if (socket) {
       return undefined;
     }
-    const id = setInterval(loadLeads, 12000);
+    const id = setInterval(() => loadLeads(true), 8000);
     return () => clearInterval(id);
   }, [socket, loadLeads]);
 
