@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useLeadNotifications } from '../../hooks/useLeadNotifications.js';
 import { useLeadSoundAlerts } from '../../hooks/useLeadSoundAlerts.js';
+import SoundSettingsPanel from './SoundSettingsPanel.jsx';
 
 const mainNavItems = [
   { to: '/dashboard', end: true, label: 'الرئيسية والتحليلات', icon: '▣' },
@@ -51,7 +52,8 @@ export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { alert, dismissAlert } = useLeadNotifications();
-  const { soundEnabled, toggleSound, banner, dismissBanner } = useLeadSoundAlerts();
+  const { soundEnabled, toggleSound, prefs, setRingtone, previewRingtone, banner, dismissBanner } =
+    useLeadSoundAlerts();
 
   function handleLogout() {
     logout();
@@ -96,19 +98,13 @@ export default function DashboardLayout() {
               <span className="hidden rounded-full bg-emerald-600/20 px-3 py-1 text-xs text-emerald-300 sm:inline">
                 البوت: تأهيل أوتوماتيكي
               </span>
-              <button
-                type="button"
-                onClick={toggleSound}
-                title={soundEnabled ? 'الإشعارات الصوتية مفعّلة — اضغط لإيقافها' : 'اضغط لتفعيل الإشعارات الصوتية'}
-                className={[
-                  'rounded-lg border px-3 py-2 text-sm font-medium transition',
-                  soundEnabled
-                    ? 'border-amber-500/40 bg-amber-500/15 text-amber-200 hover:bg-amber-500/25'
-                    : 'border-slate-700 bg-slate-800 text-slate-400 hover:bg-slate-700',
-                ].join(' ')}
-              >
-                {soundEnabled ? '🔔 الصوت مفعّل' : '🔕 الصوت متوقف'}
-              </button>
+              <SoundSettingsPanel
+                soundEnabled={soundEnabled}
+                toggleSound={toggleSound}
+                prefs={prefs}
+                setRingtone={setRingtone}
+                previewRingtone={previewRingtone}
+              />
               <button
                 type="button"
                 onClick={handleLogout}

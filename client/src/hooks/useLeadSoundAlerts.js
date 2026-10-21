@@ -3,10 +3,10 @@ import { fetchLeads } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useSocket } from '../context/SocketContext.jsx';
 import {
-  HANDOFF_CHIME_MS,
-  HUMAN_ALARM_MS,
-  playHandoffChime,
-  playHumanControlAlarm,
+  loadSoundPrefs,
+  playRingtone,
+  ringtoneDurationMs,
+  saveSoundPrefs,
   unlockAudio,
 } from '../lib/alertSounds.js';
 
@@ -28,6 +28,8 @@ export function useLeadSoundAlerts() {
   const socket = useSocket();
   const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem(STORAGE_KEY) !== 'off');
   const [banner, setBanner] = useState(null);
+  const [prefs, setPrefs] = useState(loadSoundPrefs);
+  const prefsRef = useRef(prefs);
   const enabledRef = useRef(soundEnabled);
   const seen = useRef(null);
   const userIdRef = useRef(user?.id);
@@ -55,17 +57,34 @@ export function useLeadSoundAlerts() {
   const play = useCallback((human, handoff) => {
     if (!human && !handoff) return;
     const now = Date.now();
+    const prefs = prefsRef.current;
     const delay = Math.max(0, busyUntil.current - now);
     let total = delay;
-    setTimeout(() => {
-      if (human) playHumanControlAlarm();
-    }, delay);
-    if (human) total += HUMAN_ALARM_MS;
-    setTimeout(() => {
-      if (handoff) playHandoffChime();
-    }, total);
-    if (handoff) total += HANDOFF_CHIME_MS;
+    if (human) {
+      const id = prefs.human;
+      setTimeout(() => playRingtone(id), total);
+      total += ringtoneDurationMs(id);
+    }
+    if (handoff) {
+      const id = prefs.handoff;
+      setTimeout(() => playRingtone(id), total);
+      total += ringtoneDurationMs(id);
+    }
     busyUntil.current = now + total;
+  }, []);
+
+  const setRingtone = useCallback((event, id) => {
+    const next = { ...prefsRef.current, [event]: Number(id) };
+    prefsRef.current = next;
+    setPrefs(next);
+    saveSoundPrefs(next);
+    unlockAudio();
+    playRingtone(next[event]);
+  }, []);
+
+  const previewRingtone = useCallback((id) => {
+    unlockAudio();
+    playRingtone(id);
   }, []);
 
   const process = useCallback(
@@ -153,5 +172,13 @@ export function useLeadSoundAlerts() {
     }
   }, [play]);
 
-  return { soundEnabled, toggleSound, banner, dismissBanner: () => setBanner(null) };
+  return {
+    soundEnabled,
+    toggleSound,
+    prefs,
+    setRingtone,
+    previewRingtone,
+    banner,
+    dismissBanner: () => setBanner(null),
+  };
 }
