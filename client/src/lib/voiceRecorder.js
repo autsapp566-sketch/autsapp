@@ -1,3 +1,6 @@
+// Bundled statically: a lazy chunk can fail to load on flaky mobile connections / after redeploys.
+import { Mp3Encoder } from '@breezystack/lamejs';
+
 const TARGET_RATE = 24000;
 const KBPS = 48;
 
@@ -31,8 +34,6 @@ async function toMp3(blob) {
     pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
   }
 
-  // Loaded on demand so the MP3 encoder doesn't weigh down the main bundle.
-  const { Mp3Encoder } = await import('@breezystack/lamejs');
   const encoder = new Mp3Encoder(1, decoded.sampleRate, KBPS);
   const chunks = [];
   const BLOCK = 1152;
