@@ -79,6 +79,14 @@ model KnowledgeItem {
   @@index([updatedAt])
 }
 
+/// Product images stored in the DB (serverless disks are ephemeral). Table is also auto-created at runtime.
+model UploadedImage {
+  id        String   @id
+  mimeType  String
+  data      Bytes
+  createdAt DateTime @default(now())
+}
+
 model WhatsAppInstance {
   id              String   @id @default(cuid())
   instanceName    String   @unique

@@ -15,6 +15,7 @@ import analyticsRoutes from './routes/analytics.js';
 import botPlaygroundRoutes from './routes/botPlayground.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { getProductUploadDir } from './lib/uploadDir.js';
+import { getUploadedImage } from './services/uploadedImages.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -35,6 +36,22 @@ export function createApp() {
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
+  // Public: product images are embedded by <img> tags and sent to customers on WhatsApp.
+  app.get('/api/uploads/images/:id', async (req, res, next) => {
+    try {
+      const image = await getUploadedImage(req.params.id);
+      if (!image) {
+        return res.status(404).json({ error: 'Image not found' });
+      }
+      res.setHeader('Content-Type', image.mimeType);
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      return res.send(image.data);
+    } catch (err) {
+      next(err);
+    }
   });
 
   app.use('/api/auth', authRoutes);

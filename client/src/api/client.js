@@ -235,9 +235,41 @@ export function updateKnowledgeItem(id, body) {
   });
 }
 
+/** Downscale + re-encode as JPEG so uploads stay well under the serverless 4.5MB body limit. */
+async function compressImage(file, maxSide = 1400, quality = 0.82) {
+  if (!file.type?.startsWith('image/') || file.type === 'image/gif') {
+    return file;
+  }
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+    if (!blob || blob.size >= file.size) {
+      return file;
+    }
+    const name = file.name.replace(/\.[^.]+$/, '') || 'image';
+    return new File([blob], `${name}.jpg`, { type: 'image/jpeg' });
+  } catch {
+    return file;
+  }
+}
+
 export async function uploadProductImages(files) {
   const form = new FormData();
-  for (const file of files) {
+  const prepared = await Promise.all(Array.from(files).map((f) => compressImage(f)));
+  const total = prepared.reduce((sum, f) => sum + f.size, 0);
+  if (total > 4 * 1024 * 1024) {
+    throw new Error('حجم الصور كبير — ارفع صورتين أو ثلاث في كل مرة');
+  }
+  for (const file of prepared) {
     form.append('images', file);
   }
   const headers = new Headers();
