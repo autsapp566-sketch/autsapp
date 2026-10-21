@@ -13,6 +13,7 @@ export { QUALIFICATION_SYSTEM_PROMPT };
 const MODEL = 'gpt-4o-mini';
 
 const VALID_STATUSES = new Set(['QUALIFIED', 'QUALIFYING', 'REJECTED']);
+const HANDOFF_REASONS = new Set(['READY_TO_BUY', 'WANTS_HUMAN', 'WANTS_VIDEO_CALL']);
 
 const SENDER_LABELS = {
   USER: 'العميل',
@@ -139,11 +140,16 @@ export function parseQualificationResult(raw) {
     throw new Error('AI qualification response missing summary or botResponse');
   }
 
+  const handoffReason = HANDOFF_REASONS.has(data.handoffReason) ? data.handoffReason : null;
+  const handoff = data.handoff === true || data.handoff === 'true' || handoffReason !== null;
+
   return {
     score,
     status,
     summary,
     extractedInfo: normalizeExtractedInfo(data.extractedInfo),
+    handoff,
+    handoffReason: handoff ? (handoffReason ?? 'READY_TO_BUY') : null,
     botResponse,
   };
 }

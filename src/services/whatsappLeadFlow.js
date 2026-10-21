@@ -14,6 +14,12 @@ const AI_STATUS_TO_LEAD = {
   REJECTED: 'REJECTED',
 };
 
+const HANDOFF_LABELS = {
+  READY_TO_BUY: 'جاهز للشراء — للتأكيد',
+  WANTS_HUMAN: 'طلب التحدث مع موظفة',
+  WANTS_VIDEO_CALL: 'طلب مكالمة فيديو',
+};
+
 /**
  * @param {string} phone
  * @param {string | null | undefined} pushName
@@ -109,16 +115,25 @@ export async function processIncomingWhatsAppMessage(input) {
     leadPhone: lead.phone,
   });
 
-  const nextStatus = resolveLeadStatus(qualification.status, lead.status, lead.aiPaused);
+  // Serious buyers (score >= 8) and anyone asking for a human / video call go to the
+  // confirmation agent: the bot stops and the conversation continues from the dashboard.
+  const shouldHandOff = qualification.handoff || qualification.status === 'QUALIFIED';
+  const nextStatus = shouldHandOff
+    ? 'HANDED_OFF'
+    : resolveLeadStatus(qualification.status, lead.status, lead.aiPaused);
   const extractedName = qualification.extractedInfo?.name;
+
+  const handoffLabel = HANDOFF_LABELS[qualification.handoffReason ?? 'READY_TO_BUY'];
+  const summary = shouldHandOff ? `[${handoffLabel}] ${qualification.summary}` : qualification.summary;
 
   const updatedLead = await prisma.lead.update({
     where: { id: lead.id },
     data: {
       status: nextStatus,
       qualificationScore: qualification.score,
-      summary: qualification.summary,
+      summary,
       name: lead.name ?? extractedName ?? undefined,
+      ...(shouldHandOff ? { aiPaused: true } : {}),
     },
   });
 
@@ -174,7 +189,7 @@ export async function processIncomingWhatsAppMessage(input) {
     }
   }
 
-  if (nextStatus === 'QUALIFIED') {
+  if (shouldHandOff) {
     await notifyLeadQualified(updatedLead);
   }
 
