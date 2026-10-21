@@ -1,6 +1,7 @@
 import { useAuth } from '../../context/AuthContext.jsx';
 import VoiceAISettingsView from '../../views/VoiceAISettingsView.jsx';
 import GreenApiSettingsView from '../../views/GreenApiSettingsView.jsx';
+import HandoffForwardSettings from '../../views/HandoffForwardSettings.jsx';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -28,6 +29,7 @@ export default function SettingsPage() {
 
       {isAdmin ? (
         <>
+          <HandoffForwardSettings />
           <GreenApiSettingsView embedded />
           <VoiceAISettingsView embedded />
         </>

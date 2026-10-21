@@ -11,6 +11,11 @@ import {
   updateAiSettings,
 } from '../services/aiSettings.js';
 import {
+  getHandoffForwardSettings,
+  saveHandoffForwardSettings,
+  sendHandoffForwardTest,
+} from '../services/handoffForward.js';
+import {
   getGreenSettings,
   setGreenWebhook,
   invalidateGreenStateCache,
@@ -87,6 +92,35 @@ router.post('/', async (req, res, next) => {
       settings: serializeAiSettings(row),
       message: 'تم حفظ البرومبت والإعدادات بنجاح',
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** WhatsApp numbers that get notified when a chat moves to human control / handoff. */
+router.get('/handoff-forward', async (_req, res, next) => {
+  try {
+    res.json(await getHandoffForwardSettings());
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/handoff-forward', async (req, res, next) => {
+  try {
+    const saved = await saveHandoffForwardSettings({
+      enabled: req.body?.enabled,
+      numbers: req.body?.numbers,
+    });
+    res.json({ ...saved, message: 'تم حفظ أرقام التحويل' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/handoff-forward/test', async (_req, res, next) => {
+  try {
+    res.json(await sendHandoffForwardTest());
   } catch (err) {
     next(err);
   }

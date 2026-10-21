@@ -5,6 +5,7 @@ import { extractImagesFromBotText, fileNameForImageUrl } from '../lib/botImages.
 import { getAiSettings } from './aiSettings.js';
 import { synthesizeWhatsAppSpeech } from './voiceAi.js';
 import { broadcastLeadUpdated, broadcastMessageCreated, notifyLeadQualified } from './notifications.js';
+import { forwardHandoffToAgents } from './handoffForward.js';
 import { prisma } from '../lib/prisma.js';
 
 /** @type {Record<string, import('@prisma/client').LeadStatus>} */
@@ -191,6 +192,7 @@ export async function processIncomingWhatsAppMessage(input) {
 
   if (shouldHandOff) {
     await notifyLeadQualified(updatedLead);
+    await forwardHandoffToAgents(updatedLead, { reason: handoffLabel, instance: input.instance });
   }
 
   return {

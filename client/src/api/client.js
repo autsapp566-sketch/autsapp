@@ -106,6 +106,21 @@ export function toggleLeadAi(id, aiPaused) {
   });
 }
 
+export function fetchHandoffForward() {
+  return apiFetch('/api/settings/handoff-forward');
+}
+
+export function saveHandoffForward({ enabled, numbers }) {
+  return apiFetch('/api/settings/handoff-forward', {
+    method: 'PUT',
+    body: JSON.stringify({ enabled, numbers }),
+  });
+}
+
+export function testHandoffForward() {
+  return apiFetch('/api/settings/handoff-forward/test', { method: 'POST', body: JSON.stringify({}) });
+}
+
 /** Send a recorded voice note (MP3 blob) to the customer on WhatsApp. */
 export function sendLeadVoice(id, audioBlob) {
   return apiFetch(`/api/leads/${id}/send-voice`, {

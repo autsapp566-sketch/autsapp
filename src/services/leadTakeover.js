@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js';
 import { broadcastLeadUpdated } from './notifications.js';
+import { forwardHandoffToAgents } from './handoffForward.js';
 
 /**
  * @param {{ aiPaused?: boolean, status?: string }} lead
@@ -56,5 +57,9 @@ export async function setLeadAiPaused(leadId, aiPaused, userId) {
   });
 
   broadcastLeadUpdated(updated);
+
+  if (aiPaused && !isLeadAiPaused(lead)) {
+    await forwardHandoffToAgents(updated, { reason: 'استلام بشري (إيقاف البوت يدوياً)' });
+  }
   return updated;
 }
