@@ -9,14 +9,23 @@
     "dev:client": "npm run dev --prefix client",
     "dev:all": "concurrently -n api,web -c blue,green \"npm run dev\" \"npm run dev:client\"",
     "start": "node src/index.js",
+    "build": "prisma generate && node src/index.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "db:seed": "node prisma/seed.js"
+    "db:seed": "node prisma/seed.js",
+    "postinstall": "prisma generate",
+    "vercel-build": "prisma generate"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
+  },
+  "allowScripts": {
+    "@prisma/client": true,
+    "@prisma/engines": true,
+    "prisma": true,
+    "esbuild": true
   },
   "keywords": [],
   "author": "",
@@ -30,10 +39,10 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.4.0",
     "openai": "^4.73.0",
+    "prisma": "^6.0.0",
     "socket.io": "^4.8.1"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0",
-    "prisma": "^6.0.0"
+    "concurrently": "^9.1.0"
   }
 }

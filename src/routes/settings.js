@@ -33,11 +33,10 @@ router.post('/', async (req, res, next) => {
     const body = req.body ?? {};
     const row = await updateAiSettings({
       openAiApiKey: body.openaiApiKey ?? body.openAiApiKey,
-      evolutionBaseUrl: body.evolutionBaseUrl,
-      evolutionApiKey: body.evolutionApiKey,
-      evolutionInstance: body.evolutionInstance,
-      evolutionWebhookSecret: body.evolutionWebhookSecret,
       appPublicUrl: body.appPublicUrl,
+      greenApiInstanceId: body.greenApiInstanceId ?? body.greenInstanceId ?? body.idInstance,
+      greenApiToken: body.greenApiToken ?? body.apiTokenInstance,
+      greenApiUrl: body.greenApiUrl ?? body.apiUrl,
       textModel: body.textModel,
       sttEnabled: body.sttEnabled,
       ttsEnabled: body.ttsEnabled,

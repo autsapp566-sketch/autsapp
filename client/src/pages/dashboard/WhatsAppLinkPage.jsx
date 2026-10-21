@@ -357,7 +357,11 @@ export default function WhatsAppLinkPage() {
           >
             green-api.com
           </a>{' '}
-          ثم امسح QR. Webhook الوارد:{' '}
+          — أو من{' '}
+          <Link to="/dashboard/settings" className="text-emerald-400 hover:underline">
+            الإعدادات
+          </Link>
+          . Webhook الوارد:{' '}
           <span className="font-mono text-xs text-slate-300" dir="ltr">
             {webhookHint}
           </span>
