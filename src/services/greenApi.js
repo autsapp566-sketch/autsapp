@@ -40,6 +40,14 @@ function formatGreenHttpError(status, body, statusText) {
   if (status === 429) {
     return 'Green API: طلبات كثيرة — انتظر 3–5 ثوانٍ ثم أعد المحاولة';
   }
+  const quotaText = body?.correspondentsStatus?.description ?? body?.invokeStatus?.description;
+  if (status === 466 || (typeof quotaText === 'string' && quotaText.trim())) {
+    return (
+      'حصة Green API مستنفدة: خطة Developer تسمح بالمراسلة مع 3 أرقام فقط. ' +
+      'رقّ الخطة إلى Business من console.green-api.com. ' +
+      (quotaText ?? '')
+    ).trim();
+  }
   const detail = body?.message ?? body?.error ?? body?.reason;
   if (typeof detail === 'string' && detail.trim()) {
     return detail;
