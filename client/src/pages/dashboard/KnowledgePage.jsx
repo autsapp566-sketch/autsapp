@@ -9,6 +9,7 @@ import {
   uploadProductImages,
   analyzeProductImages,
 } from '../../api/client.js';
+import { hexToArabicName, swatchForColor } from '../../lib/colorNames.js';
 
 const CLOTHING_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'];
 const EU_CLOTHING_SIZES = ['36', '38', '40', '42', '44', '46'];
@@ -149,11 +150,14 @@ function ProductMediaFields({
   onUpload,
   analyzing,
   onAnalyze,
+  swatches,
+  onSwatch,
   imageLink,
   setImageLink,
   colorDraft,
   setColorDraft,
 }) {
+  const [pickerHex, setPickerHex] = useState('#7c3aed');
   const imageUrls = form.imageUrls ?? [];
 
   function toggleSize(size) {
@@ -190,6 +194,13 @@ function ProductMediaFields({
     if (!c) return;
     toggleColor(c);
     setColorDraft('');
+  }
+
+  function addPickedColor() {
+    const name = hexToArabicName(pickerHex);
+    if (!name) return;
+    onSwatch(name, pickerHex);
+    setForm((p) => ((p.colors ?? []).includes(name) ? p : { ...p, colors: [...(p.colors ?? []), name] }));
   }
 
   return (
@@ -257,22 +268,51 @@ function ProductMediaFields({
       <div className="space-y-2">
         <p className="text-sm font-medium text-slate-200">ألوان المنتج</p>
         <div className="flex flex-wrap gap-2">
-          {COLOR_PRESETS.map((c) => {
+          {[...COLOR_PRESETS, ...(form.colors ?? []).filter((c) => !COLOR_PRESETS.includes(c))].map((c) => {
             const active = (form.colors ?? []).includes(c);
+            const swatch = swatchForColor(c, swatches);
             return (
               <button
                 key={c}
                 type="button"
                 onClick={() => toggleColor(c)}
                 className={[
-                  'rounded-lg px-3 py-1 text-xs font-medium transition',
+                  'flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition',
                   active ? 'bg-violet-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700',
                 ].join(' ')}
               >
+                {swatch ? (
+                  <span
+                    className="inline-block h-3 w-3 rounded-full border border-white/30"
+                    style={{ backgroundColor: swatch }}
+                  />
+                ) : null}
                 {c}
               </button>
             );
           })}
+        </div>
+        <div className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-950 p-2">
+          <input
+            type="color"
+            value={pickerHex}
+            onChange={(e) => setPickerHex(e.target.value)}
+            title="اختر لوناً من لوحة التدرج"
+            className="h-9 w-12 shrink-0 cursor-pointer rounded-lg border border-slate-600 bg-transparent p-0.5"
+          />
+          <span className="min-w-0 flex-1 truncate text-xs text-slate-300">
+            🎨 {hexToArabicName(pickerHex)}
+            <span dir="ltr" className="mr-2 text-slate-500">
+              {pickerHex}
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={addPickedColor}
+            className="shrink-0 rounded-lg bg-violet-600 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-500"
+          >
+            إضافة اللون
+          </button>
         </div>
         <div className="flex gap-2">
           <input
@@ -355,6 +395,7 @@ export default function KnowledgePage() {
   const [copilotBrief, setCopilotBrief] = useState('');
   const [uploadingImages, setUploadingImages] = useState(false);
   const [analyzingImages, setAnalyzingImages] = useState(false);
+  const [colorSwatches, setColorSwatches] = useState({});
   const [imageLinkDraft, setImageLinkDraft] = useState('');
   const [colorDraft, setColorDraft] = useState('');
 
@@ -460,6 +501,7 @@ export default function KnowledgePage() {
     setError('');
     try {
       const result = await analyzeProductImages(urls);
+      setColorSwatches((s) => ({ ...s, ...(result.colorHexes ?? {}) }));
       applyImageAnalysis(result, overwrite);
       setToast('تم تحليل الصور — راجع العنوان والوصف والألوان قبل الحفظ');
     } catch (err) {
@@ -676,6 +718,8 @@ export default function KnowledgePage() {
               onUpload={handleProductImageUpload}
               analyzing={analyzingImages}
               onAnalyze={(urls) => analyzeImages(urls, true)}
+              swatches={colorSwatches}
+              onSwatch={(name, hex) => setColorSwatches((s) => ({ ...s, [name]: hex }))}
               imageLink={imageLinkDraft}
               setImageLink={setImageLinkDraft}
               colorDraft={colorDraft}

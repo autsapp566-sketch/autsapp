@@ -43,22 +43,25 @@ async function toVisionImage(url) {
   return null;
 }
 
+/** Accepts ["أسود"] or [{name, hex}] and returns names plus a name -> hex map. */
 function normalizeColors(raw) {
   const list = Array.isArray(raw) ? raw : [];
-  const out = [];
+  const colors = [];
+  const colorHexes = {};
   for (const c of list) {
-    const color = String(c ?? '').trim();
-    if (color && !out.includes(color)) {
-      out.push(color);
-    }
+    const name = String(typeof c === 'object' && c ? c.name : c ?? '').trim();
+    if (!name || colors.includes(name)) continue;
+    colors.push(name);
+    const hex = typeof c === 'object' && c ? String(c.hex ?? '').trim() : '';
+    if (/^#[0-9a-f]{6}$/i.test(hex)) colorHexes[name] = hex.toLowerCase();
   }
-  return out.slice(0, 8);
+  return { colors: colors.slice(0, 8), colorHexes };
 }
 
 /**
  * Detect title / description / colors of a product from its photos.
  * @param {string[]} imageUrls
- * @returns {Promise<{ title: string, description: string, colors: string[] }>}
+ * @returns {Promise<{ title: string, description: string, colors: string[], colorHexes: Record<string,string> }>}
  */
 export async function analyzeProductImages(imageUrls) {
   const urls = (Array.isArray(imageUrls) ? imageUrls : [])
@@ -93,9 +96,9 @@ export async function analyzeProductImages(imageUrls) {
 {
   "title": "اسم المنتج بالعربية، قصير وواضح (3 إلى 8 كلمات)",
   "description": "وصف تسويقي بالعربية/الدارجة المغربية في 2 إلى 4 جمل: النوع، الخامة، التفاصيل البارزة، الاستعمال. لا تخترع أسعاراً ولا مقاسات ولا علامات تجارية غير ظاهرة.",
-  "colors": ["ألوان المنتج الظاهرة في الصور"]
+  "colors": [{ "name": "اسم اللون بالعربية", "hex": "#RRGGBB" }]
 }
-في colors استعمل هذه الأسماء بالضبط عندما تناسب: ${COLOR_PRESETS.join('، ')}. إذا كان لون غير موجود في القائمة اكتب اسمه بالعربية. اذكر فقط ألوان المنتج نفسه وليس الخلفية، بحد أقصى 6 ألوان.`,
+في colors أنت حر تماماً في اختيار اللون الأدق كما تراه في الصور: لا تلتزم بقائمة محددة. استعمل أسماء دقيقة مع التدرج عند الحاجة (مثل: كحلي، أزرق سماوي، أخضر زيتي، بني غامق، وردي فاتح، رمادي فحمي، بيج رملي، عنابي، ذهبي). يمكنك استعمال الأسماء الشائعة (${COLOR_PRESETS.join('، ')}) إذا كانت هي الأنسب. أعطِ لكل لون كود hex تقريبي يطابق ما تراه. اذكر فقط ألوان المنتج نفسه وليس الخلفية أو الموديل، بحد أقصى 6 ألوان.`,
       },
       {
         role: 'user',
@@ -110,9 +113,11 @@ export async function analyzeProductImages(imageUrls) {
   }
 
   const data = JSON.parse(raw);
+  const { colors, colorHexes } = normalizeColors(data.colors);
   return {
     title: String(data.title ?? '').trim(),
     description: String(data.description ?? '').trim(),
-    colors: normalizeColors(data.colors),
+    colors,
+    colorHexes,
   };
 }
