@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchSettings, saveSettings } from '../api/client.js';
+import {
+  fetchGreenWebhookStatus,
+  fetchSettings,
+  saveSettings,
+  syncGreenWebhook,
+} from '../api/client.js';
 
 export default function GreenApiSettingsView({ embedded = false }) {
   const [form, setForm] = useState({
@@ -14,6 +19,30 @@ export default function GreenApiSettingsView({ embedded = false }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
+  const [webhook, setWebhook] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+
+  const loadWebhook = useCallback(async () => {
+    try {
+      setWebhook(await fetchGreenWebhookStatus());
+    } catch (err) {
+      setWebhook({ error: err.message ?? 'تعذر قراءة Webhook من Green API' });
+    }
+  }, []);
+
+  async function handleSyncWebhook() {
+    setSyncing(true);
+    setError('');
+    try {
+      const data = await syncGreenWebhook();
+      setToast(data.message ?? 'تم ضبط Webhook');
+      await loadWebhook();
+    } catch (err) {
+      setError(err.message ?? 'تعذر ضبط Webhook');
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -36,8 +65,8 @@ export default function GreenApiSettingsView({ embedded = false }) {
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    load().then(loadWebhook);
+  }, [load, loadWebhook]);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -69,17 +98,13 @@ export default function GreenApiSettingsView({ embedded = false }) {
         greenApiConfigured: Boolean(s.greenApiConfigured),
       }));
       setToast(data.message ?? 'تم حفظ Green API');
+      loadWebhook();
     } catch (err) {
       setError(err.message ?? 'تعذر الحفظ');
     } finally {
       setSaving(false);
     }
   }
-
-  const webhookPath = '/api/webhook/green-api';
-  const webhookPreview = form.appPublicUrl
-    ? `${form.appPublicUrl.replace(/\/$/, '')}${webhookPath}`
-    : `https://your-domain.com${webhookPath}`;
 
   if (loading) {
     return <p className="text-sm text-slate-500">جاري تحميل Green API…</p>;
@@ -161,9 +186,41 @@ export default function GreenApiSettingsView({ embedded = false }) {
           </div>
         </div>
 
-        <p className="text-xs text-slate-500" dir="ltr">
-          Webhook في Green API: <span className="text-slate-300">{webhookPreview}</span>
-        </p>
+        <div className="space-y-2 rounded-xl border border-slate-700 bg-slate-950/60 p-4 text-right text-xs">
+          <p className="font-semibold text-slate-200">استقبال الرسائل (Webhook)</p>
+          {webhook?.error ? (
+            <p className="text-red-300">{webhook.error}</p>
+          ) : webhook?.configured === false ? (
+            <p className="text-amber-300">احفظ Instance ID و API Token أولاً.</p>
+          ) : webhook ? (
+            <>
+              <p className={webhook.matches ? 'text-emerald-400' : 'text-amber-300'}>
+                {webhook.matches
+                  ? '✓ Green API يرسل الرسائل الواردة إلى هذا الخادم'
+                  : '⚠ Green API لا يرسل الرسائل إلى هذا الخادم — البوت لن يرد حتى تضغط "تفعيل الاستقبال"'}
+              </p>
+              <p className="text-slate-400" dir="ltr">
+                الحالي في Green: <span className="text-slate-300">{webhook.webhookUrl || '(فارغ)'}</span>
+              </p>
+              <p className="text-slate-400" dir="ltr">
+                المطلوب: <span className="text-slate-300">{webhook.expectedUrl}</span>
+              </p>
+            </>
+          ) : (
+            <p className="text-slate-500">جاري التحقق…</p>
+          )}
+          <button
+            type="button"
+            onClick={handleSyncWebhook}
+            disabled={syncing || !form.greenApiConfigured}
+            className="rounded-lg bg-sky-600 px-4 py-2 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
+          >
+            {syncing ? 'جاري الضبط…' : 'تفعيل الاستقبال تلقائياً'}
+          </button>
+          <p className="text-slate-500">
+            بعد التفعيل قد يعيد Green تشغيل الحساب (حتى 5 دقائق) قبل أن يبدأ الرد.
+          </p>
+        </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link to="/dashboard/whatsapp" className="text-sm text-emerald-400 hover:underline">

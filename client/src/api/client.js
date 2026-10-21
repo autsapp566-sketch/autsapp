@@ -163,6 +163,14 @@ export function saveSettings(body) {
   });
 }
 
+export function fetchGreenWebhookStatus() {
+  return apiFetch('/api/settings/green-webhook');
+}
+
+export function syncGreenWebhook() {
+  return apiFetch('/api/settings/green-webhook/sync', { method: 'POST' });
+}
+
 export function fetchAiVoiceSettings() {
   return fetchSettings();
 }
