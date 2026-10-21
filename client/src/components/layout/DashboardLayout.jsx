@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useLeadNotifications } from '../../hooks/useLeadNotifications.js';
+import { useLeadSoundAlerts } from '../../hooks/useLeadSoundAlerts.js';
 
 const mainNavItems = [
   { to: '/dashboard', end: true, label: 'الرئيسية والتحليلات', icon: '▣' },
@@ -50,6 +51,7 @@ export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { alert, dismissAlert } = useLeadNotifications();
+  const { soundEnabled, toggleSound, banner, dismissBanner } = useLeadSoundAlerts();
 
   function handleLogout() {
     logout();
@@ -96,6 +98,19 @@ export default function DashboardLayout() {
               </span>
               <button
                 type="button"
+                onClick={toggleSound}
+                title={soundEnabled ? 'الإشعارات الصوتية مفعّلة — اضغط لإيقافها' : 'اضغط لتفعيل الإشعارات الصوتية'}
+                className={[
+                  'rounded-lg border px-3 py-2 text-sm font-medium transition',
+                  soundEnabled
+                    ? 'border-amber-500/40 bg-amber-500/15 text-amber-200 hover:bg-amber-500/25'
+                    : 'border-slate-700 bg-slate-800 text-slate-400 hover:bg-slate-700',
+                ].join(' ')}
+              >
+                {soundEnabled ? '🔔 الصوت مفعّل' : '🔕 الصوت متوقف'}
+              </button>
+              <button
+                type="button"
                 onClick={handleLogout}
                 className="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-700"
               >
@@ -123,6 +138,35 @@ export default function DashboardLayout() {
         </header>
 
         <main className="flex-1 p-4 sm:p-6">
+          {banner ? (
+            <div
+              role="alert"
+              className={[
+                'mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm font-semibold',
+                banner.kind === 'human'
+                  ? 'border-red-500/50 bg-red-500/15 text-red-100'
+                  : 'border-violet-500/40 bg-violet-500/15 text-violet-100',
+              ].join(' ')}
+            >
+              <span>{banner.text}</span>
+              <span className="flex gap-2">
+                <NavLink
+                  to="/dashboard/chats"
+                  onClick={dismissBanner}
+                  className="rounded-lg bg-slate-800 px-3 py-1 text-xs font-medium text-white"
+                >
+                  فتح المحادثات
+                </NavLink>
+                <button
+                  type="button"
+                  onClick={dismissBanner}
+                  className="rounded-lg bg-slate-800 px-3 py-1 text-xs font-medium text-slate-200"
+                >
+                  إغلاق
+                </button>
+              </span>
+            </div>
+          ) : null}
           {alert ? (
             <div
               role="status"
