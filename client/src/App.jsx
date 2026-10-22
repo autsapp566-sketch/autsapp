@@ -10,6 +10,7 @@ import WhatsAppLinkPage from './pages/dashboard/WhatsAppLinkPage.jsx';
 import KnowledgePage from './pages/dashboard/KnowledgePage.jsx';
 import BotPlaygroundPage from './pages/dashboard/BotPlaygroundPage.jsx';
 import TeamPage from './pages/dashboard/TeamPage.jsx';
+import DocsPage from './pages/dashboard/DocsPage.jsx';
 import PermissionRoute from './components/PermissionRoute.jsx';
 
 export default function App() {
@@ -26,6 +27,7 @@ export default function App() {
             <Route path="knowledge" element={<PermissionRoute to="/dashboard/knowledge"><KnowledgePage /></PermissionRoute>} />
             <Route path="playground" element={<PermissionRoute to="/dashboard/playground"><BotPlaygroundPage /></PermissionRoute>} />
             <Route path="team" element={<PermissionRoute to="/dashboard/team"><TeamPage /></PermissionRoute>} />
+            <Route path="docs" element={<DocsPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
           <Route path="/settings/ai-voice" element={<Navigate to="/dashboard/settings" replace />} />

@@ -17,6 +17,7 @@ const mainNavItems = [
 ];
 
 const settingsNavItems = [
+  { to: '/dashboard/docs', label: 'التوثيق ودليل الاستعمال', icon: '📖' },
   { to: '/dashboard/settings', label: 'إعدادات الحساب', icon: '⚙' },
 ];
 
