@@ -7,6 +7,7 @@ import { synthesizeWhatsAppSpeech } from './voiceAi.js';
 import { broadcastLeadUpdated, broadcastMessageCreated, notifyLeadQualified } from './notifications.js';
 import { forwardHandoffToAgents } from './handoffForward.js';
 import { createAdminAlert } from './adminAlerts.js';
+import { resolveAdContext } from './adContext.js';
 import { prisma } from '../lib/prisma.js';
 
 /** @type {Record<string, import('@prisma/client').LeadStatus>} */
@@ -82,16 +83,22 @@ function resolveLeadStatus(aiStatus, currentStatus, aiPaused) {
  *   instance: string,
  *   isVoiceNote?: boolean,
  *   isEdited?: boolean,
+ *   ad?: object | null,
  * }} input
  */
 export async function processIncomingWhatsAppMessage(input) {
   const lead = await findOrCreateLead(input.phone, input.pushName);
 
-  const userContent = input.isVoiceNote
+  // Customer came from an ad / sent a product link: work out which product it is.
+  const adContext = input.ad ? await resolveAdContext(input.ad) : null;
+
+  const baseContent = input.isVoiceNote
     ? `[رسالة صوتية] ${input.text}`
     : input.isEdited
       ? `✏️ (رسالة معدّلة) ${input.text}`
       : input.text;
+  // The note stays in the history so follow-up messages still know which product the ad was about.
+  const userContent = adContext ? `${baseContent}\n${adContext.note}` : baseContent;
 
   const userMessage = await prisma.message.create({
     data: {
@@ -120,6 +127,7 @@ export async function processIncomingWhatsAppMessage(input) {
   const qualification = await qualifyLead(conversationHistory, {
     leadName: lead.name,
     leadPhone: lead.phone,
+    adContext: adContext?.prompt ?? null,
   });
 
   // Serious buyers (score >= 8) and anyone asking for a human / video call go to the

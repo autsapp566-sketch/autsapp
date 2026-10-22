@@ -190,6 +190,7 @@ export async function qualifyLead(conversationHistory, context = {}) {
 
   const userContent = [
     contextLines.length ? contextLines.join('\n') : null,
+    context.adContext || null,
     '--- المحادثة ---',
     transcript,
   ]
