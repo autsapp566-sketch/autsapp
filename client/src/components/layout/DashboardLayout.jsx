@@ -4,6 +4,7 @@ import { useLeadNotifications } from '../../hooks/useLeadNotifications.js';
 import { useLeadSoundAlerts } from '../../hooks/useLeadSoundAlerts.js';
 import { useAdminAlerts } from '../../hooks/useAdminAlerts.js';
 import SoundSettingsPanel from './SoundSettingsPanel.jsx';
+import { canOpenPage, PAGE_ACCESS } from '../../lib/access.js';
 
 const mainNavItems = [
   { to: '/dashboard', end: true, label: 'الرئيسية والتحليلات', icon: '▣' },
@@ -12,6 +13,7 @@ const mainNavItems = [
   { to: '/dashboard/knowledge', label: 'الكتالوج والأسئلة (Knowledge)', icon: '📚' },
   { to: '/dashboard/playground', label: 'اختبار البوت (Playground)', icon: '🧪' },
   { to: '/dashboard/whatsapp', label: 'ربط أرقام واتساب', icon: '📱' },
+  { to: '/dashboard/team', label: 'الفريق والصلاحيات', icon: '👥' },
 ];
 
 const settingsNavItems = [
@@ -19,7 +21,10 @@ const settingsNavItems = [
 ];
 
 function visibleNavItems(user, items) {
-  return items.filter((item) => !item.roles || item.roles.includes(user?.role));
+  return items.filter((item) => {
+    const page = PAGE_ACCESS.find((p) => p.to === item.to);
+    return page ? canOpenPage(user, page) : true;
+  });
 }
 
 const roleLabels = {

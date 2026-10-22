@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchLeads, setLeadTakeover } from '../../api/client.js';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { can } from '../../lib/access.js';
 import { useLeadsListRealtime } from '../../hooks/useLeadRealtime.js';
 import LeadChatPanel from './LeadChatPanel.jsx';
 
@@ -30,6 +32,8 @@ export default function LeadManagementView({ title, subtitle }) {
   const [error, setError] = useState('');
   const [selectedId, setSelectedId] = useState(null);
   const [takeoverId, setTakeoverId] = useState(null);
+  const { user } = useAuth();
+  const canTakeover = can(user, 'takeover');
 
   const loadLeads = useCallback(async () => {
     setLoading(true);
@@ -174,14 +178,16 @@ export default function LeadManagementView({ title, subtitle }) {
                   <span className="text-xs font-bold text-emerald-400">
                     {lead.qualificationScore != null ? `${lead.qualificationScore}/10` : '—'}
                   </span>
-                  <button
-                    type="button"
-                    onClick={(e) => handleTakeOver(lead.id, e)}
-                    disabled={takeoverId === lead.id || lead.status === 'HANDED_OFF'}
-                    className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    {takeoverId === lead.id ? '...' : 'استلام / Take Over'}
-                  </button>
+                  {canTakeover ? (
+                    <button
+                      type="button"
+                      onClick={(e) => handleTakeOver(lead.id, e)}
+                      disabled={takeoverId === lead.id || lead.status === 'HANDED_OFF'}
+                      className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {takeoverId === lead.id ? '...' : 'استلام / Take Over'}
+                    </button>
+                  ) : null}
                 </div>
               </article>
             ))

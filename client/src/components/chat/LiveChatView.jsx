@@ -8,6 +8,8 @@ import {
 } from '../../api/client.js';
 import { startVoiceRecording } from '../../lib/voiceRecorder.js';
 import { useSocket } from '../../context/SocketContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { can } from '../../lib/access.js';
 import { useLeadRealtime, useLeadsListRealtime } from '../../hooks/useLeadRealtime.js';
 
 const QUICK_REPLIES = [
@@ -168,6 +170,9 @@ function ConversationPanel({ leadId, onLeadChange, onMobileBack, onToast }) {
   const recorderRef = useRef(null);
   const bottomRef = useRef(null);
   const socket = useSocket();
+  const { user } = useAuth();
+  const canTakeover = can(user, 'takeover');
+  const canReply = can(user, 'reply');
 
   // Timer + auto-stop while recording.
   useEffect(() => {
@@ -407,7 +412,7 @@ function ConversationPanel({ leadId, onLeadChange, onMobileBack, onToast }) {
               تحكم بشري 👤
             </span>
           ) : null}
-          {isAiPaused ? (
+          {!canTakeover ? null : isAiPaused ? (
             <button
               type="button"
               disabled={takeoverBusy}
@@ -482,6 +487,11 @@ function ConversationPanel({ leadId, onLeadChange, onMobileBack, onToast }) {
         </div>
       ) : null}
 
+      {!canReply ? (
+        <footer className="shrink-0 border-t border-[#2a3942] bg-[#202c33] px-4 py-4 text-center text-xs text-[#8696a0]">
+          عرض فقط — ليست لديك صلاحية الرد على العملاء.
+        </footer>
+      ) : (
       <footer className="shrink-0 border-t border-[#2a3942] bg-[#202c33] px-3 py-3 sm:px-4">
         <div className="mb-2 flex flex-wrap gap-2">
           <span className="w-full text-[10px] font-semibold uppercase tracking-wide text-[#8696a0] sm:w-auto">
@@ -564,6 +574,7 @@ function ConversationPanel({ leadId, onLeadChange, onMobileBack, onToast }) {
         </form>
         )}
       </footer>
+      )}
     </div>
   );
 }
@@ -594,6 +605,8 @@ export default function LiveChatView({ title = 'محادثات مباشرة', su
   const [mobileShowChat, setMobileShowChat] = useState(false);
   const [toast, setToast] = useState('');
   const socket = useSocket();
+  const { user: currentUser } = useAuth();
+  const listCanTakeover = can(currentUser, 'takeover');
 
   const activeFilter = FILTER_TABS.find((t) => t.id === filterId) ?? FILTER_TABS[0];
 
@@ -867,14 +880,16 @@ export default function LiveChatView({ title = 'محادثات مباشرة', su
                               <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${ai.className}`}>
                                 {ai.text}
                               </span>
-                              <button
-                                type="button"
-                                onClick={(e) => handleTakeOver(lead.id, e)}
-                                disabled={takeoverId === lead.id || lead.aiPaused}
-                                className="ms-auto rounded-md bg-[#00a884]/90 px-2 py-0.5 text-[10px] font-semibold text-[#111b21] disabled:cursor-not-allowed disabled:opacity-30"
-                              >
-                                {takeoverId === lead.id ? '...' : 'استلام'}
-                              </button>
+                              {listCanTakeover ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleTakeOver(lead.id, e)}
+                                  disabled={takeoverId === lead.id || lead.aiPaused}
+                                  className="ms-auto rounded-md bg-[#00a884]/90 px-2 py-0.5 text-[10px] font-semibold text-[#111b21] disabled:cursor-not-allowed disabled:opacity-30"
+                                >
+                                  {takeoverId === lead.id ? '...' : 'استلام'}
+                                </button>
+                              ) : null}
                             </div>
                           </div>
                         </div>

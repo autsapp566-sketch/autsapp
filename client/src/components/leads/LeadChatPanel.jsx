@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchLead, sendLeadMessage, setLeadTakeover } from '../../api/client.js';
 import { useLeadRealtime } from '../../hooks/useLeadRealtime.js';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { can } from '../../lib/access.js';
 
 const senderStyles = {
   USER: 'ms-auto bg-slate-800 text-slate-100',
@@ -35,6 +37,9 @@ export default function LeadChatPanel({ leadId, onClose, onLeadChange }) {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [takeoverBusy, setTakeoverBusy] = useState(false);
+  const { user } = useAuth();
+  const canTakeover = can(user, 'takeover');
+  const canReply = can(user, 'reply');
   const bottomRef = useRef(null);
 
   const loadLead = useCallback(async () => {
@@ -143,16 +148,18 @@ export default function LeadChatPanel({ leadId, onClose, onLeadChange }) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-300">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-              checked={isHandedOff}
-              disabled={takeoverBusy}
-              onChange={handleTakeoverToggle}
-            />
-            <span>{isHandedOff ? 'التسليم مفعّل (AI متوقف)' : 'تفعيل التسليم / إيقاف AI'}</span>
-          </label>
+          {canTakeover ? (
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-300">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                checked={isHandedOff}
+                disabled={takeoverBusy}
+                onChange={handleTakeoverToggle}
+              />
+              <span>{isHandedOff ? 'التسليم مفعّل (AI متوقف)' : 'تفعيل التسليم / إيقاف AI'}</span>
+            </label>
+          ) : null}
           {onClose ? (
             <button
               type="button"
@@ -190,6 +197,11 @@ export default function LeadChatPanel({ leadId, onClose, onLeadChange }) {
         <div className="mx-4 mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>
       ) : null}
 
+      {!canReply ? (
+        <p className="border-t border-slate-800 p-4 text-center text-xs text-slate-500">
+          عرض فقط — ليست لديك صلاحية الرد على العملاء.
+        </p>
+      ) : (
       <form onSubmit={handleSend} className="border-t border-slate-800 p-4">
         <div className="flex gap-2">
           <textarea
@@ -211,6 +223,7 @@ export default function LeadChatPanel({ leadId, onClose, onLeadChange }) {
           <p className="mt-2 text-[11px] text-slate-500">لإيقاف البوت تلقائياً، فعّل «التسليم» قبل أو أثناء الرد.</p>
         ) : null}
       </form>
+      )}
     </div>
   );
 }

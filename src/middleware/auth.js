@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
+import { getUserAccess } from '../services/agentAccess.js';
 
 export function authenticate(req, res, next) {
   const header = req.headers.authorization;
@@ -31,7 +32,12 @@ export async function attachUser(req, res, next) {
       return res.status(401).json({ error: 'User not found' });
     }
 
-    req.user = user;
+    const access = await getUserAccess(user);
+    if (!access.active) {
+      return res.status(403).json({ error: 'تم تعطيل حسابك. تواصل مع المدير.' });
+    }
+
+    req.user = { ...user, permissions: access.permissions };
     next();
   } catch (err) {
     next(err);
