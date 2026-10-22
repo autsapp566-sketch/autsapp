@@ -23,7 +23,7 @@ export const COLOR_PRESETS = [
  * can analyse them even when the API runs on localhost or behind auth.
  * @param {string} url
  */
-async function toVisionImage(url) {
+export async function toVisionImage(url) {
   const match = UPLOADED_ID_RE.exec(url);
   if (match) {
     const stored = await getUploadedImage(match[1]);
