@@ -127,6 +127,7 @@ export default function WhatsAppLinkPage() {
   const [greenApiToken, setGreenApiToken] = useState('');
   const [greenApiUrl, setGreenApiUrl] = useState('');
   const [creating, setCreating] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [activeQr, setActiveQr] = useState(null);
   const [pollingId, setPollingId] = useState(null);
   const [actionId, setActionId] = useState(null);
@@ -153,9 +154,12 @@ export default function WhatsAppLinkPage() {
     if (!integration) {
       return;
     }
-    setGreenInstanceId((v) => v || integration.instanceId || '');
+    // Only the very first number is pre-filled from the saved/.env settings.
+    if (instances.length === 0) {
+      setGreenInstanceId((v) => v || integration.instanceId || '');
+    }
     setGreenApiUrl((v) => v || integration.baseUrl || '');
-  }, [integration]);
+  }, [integration, instances.length]);
 
   useEffect(() => {
     load();
@@ -235,6 +239,10 @@ export default function WhatsAppLinkPage() {
     if (!isAdmin) {
       return;
     }
+    if (instances.length > 0 && (!greenInstanceId.trim() || !greenApiToken.trim())) {
+      setError('أدخل Instance ID و API Token الخاصين بالرقم الجديد');
+      return;
+    }
     setCreating(true);
     setError('');
     setSuccessMsg('');
@@ -246,10 +254,15 @@ export default function WhatsAppLinkPage() {
         greenApiUrl: greenApiUrl.trim() || undefined,
       });
       applyQrResponse(data.instance.id, data.instance, data);
-      setLabel('');
-      if (greenApiToken) {
-        setGreenApiToken('');
+      if (data.webhookSynced) {
+        setSuccessMsg('تم حفظ الرقم وضبط Webhook تلقائياً — قد يعيد Green API تشغيل الحساب لدقائق قليلة.');
+      } else if (data.webhookError) {
+        setSuccessMsg(`تم حفظ الرقم، لكن تعذر ضبط Webhook تلقائياً: ${data.webhookError}`);
       }
+      setLabel('');
+      setGreenInstanceId('');
+      setGreenApiToken('');
+      setShowForm(false);
       await load();
     } catch (err) {
       setError(err.message ?? 'تعذر إنشاء الربط — تحقق من Green API');
@@ -258,9 +271,14 @@ export default function WhatsAppLinkPage() {
     }
   }
 
-  async function quickQrConnect() {
-    if (!isAdmin || creating) return;
-    await handleCreate({ preventDefault: () => {} });
+  function openNewForm() {
+    // A new number needs its own Instance ID + Token: start from an empty form.
+    setGreenInstanceId('');
+    setGreenApiToken('');
+    setLabel('');
+    setError('');
+    setSuccessMsg('');
+    setShowForm(true);
   }
 
   async function refreshQr(instanceId, opts = {}) {
@@ -331,7 +349,6 @@ export default function WhatsAppLinkPage() {
     }
   }
 
-  const hasConnected = instances.some((i) => isConnectedState(i.connectionState));
   const webhookHint = integration?.webhookUrl ?? 'http://localhost:3000/api/webhook/green-api';
 
   return (
@@ -379,39 +396,36 @@ export default function WhatsAppLinkPage() {
       ) : null}
 
       {isAdmin ? (
-        <>
-          <div className="rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/10 to-slate-900/80 p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="font-semibold text-white">ربط سريع بـ QR Code</p>
-                <p className="mt-1 text-sm text-slate-400">
-                  {hasConnected
-                    ? 'يمكنك إضافة instance آخر أو إعادة مسح QR.'
-                    : 'املأ الحقول أدناه أو اعتمد على .env ثم اعرض QR.'}
-                </p>
-              </div>
-              <button
-                type="button"
-                disabled={creating}
-                onClick={quickQrConnect}
-                className="shrink-0 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/30 hover:bg-emerald-500 disabled:opacity-50"
-              >
-                {creating ? 'جاري التحضير…' : '📱 عرض QR Code للربط'}
-              </button>
-            </div>
-          </div>
-
+        showForm || instances.length === 0 ? (
           <form
             onSubmit={handleCreate}
+            autoComplete="off"
             className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 md:grid-cols-2"
           >
+            <div className="flex items-center justify-between md:col-span-2">
+              <h3 className="text-sm font-semibold text-white">
+                {instances.length === 0 ? 'ربط رقم واتساب' : 'ربط رقم واتساب جديد'}
+              </h3>
+              {instances.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="text-xs text-slate-400 hover:text-white"
+                >
+                  إلغاء ✕
+                </button>
+              ) : null}
+            </div>
             <div>
               <label className="mb-1 block text-xs text-slate-400">Instance ID (idInstance)</label>
               <input
+                name="green-instance-id"
                 value={greenInstanceId}
                 onChange={(e) => setGreenInstanceId(e.target.value)}
                 placeholder="710722775456"
                 dir="ltr"
+                inputMode="numeric"
+                autoComplete="off"
                 className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
               />
             </div>
@@ -420,31 +434,36 @@ export default function WhatsAppLinkPage() {
                 API Token (apiTokenInstance — ليس Admin token)
               </label>
               <input
+                name="green-api-token"
                 type="password"
                 value={greenApiToken}
                 onChange={(e) => setGreenApiToken(e.target.value)}
-                placeholder="فارغ = .env أو Token المحفوظ"
+                placeholder={instances.length === 0 ? 'فارغ = .env أو Token المحفوظ' : 'Token الرقم الجديد'}
                 dir="ltr"
-                autoComplete="off"
+                autoComplete="new-password"
                 className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
               />
             </div>
             <div>
               <label className="mb-1 block text-xs text-slate-400">Green API URL (اختياري)</label>
               <input
+                name="green-api-url"
                 value={greenApiUrl}
                 onChange={(e) => setGreenApiUrl(e.target.value)}
                 placeholder="https://7107.api.greenapi.com"
                 dir="ltr"
+                autoComplete="off"
                 className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
               />
             </div>
             <div>
               <label className="mb-1 block text-xs text-slate-400">اسم ظاهر (اختياري)</label>
               <input
+                name="green-label"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
                 placeholder="خط الدعم 1"
+                autoComplete="off"
                 className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
               />
             </div>
@@ -458,7 +477,15 @@ export default function WhatsAppLinkPage() {
               </button>
             </div>
           </form>
-        </>
+        ) : (
+          <button
+            type="button"
+            onClick={openNewForm}
+            className="w-full rounded-2xl border border-dashed border-emerald-500/40 bg-emerald-500/5 py-4 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/10"
+          >
+            ➕ ربط رقم واتساب آخر
+          </button>
+        )
       ) : (
         <p className="text-sm text-slate-500">إضافة أرقام جديدة متاحة لمدير النظام فقط.</p>
       )}

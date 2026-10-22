@@ -14,6 +14,7 @@ import {
   maskGreenToken,
   rebootInstance,
   resolveGreenCredentials,
+  setGreenWebhook,
 } from '../services/greenApi.js';
 
 const router = express.Router();
@@ -52,6 +53,13 @@ function sendGreenRouteError(res, err, fallbackStatus = 502) {
     error: err.message || 'Green API request failed',
     provider: 'green-api',
   });
+}
+
+/** Public base URL of THIS API, derived from the incoming request. */
+function requestBaseUrl(req) {
+  const proto = String(req.headers['x-forwarded-proto'] ?? req.protocol ?? 'https').split(',')[0].trim();
+  const host = String(req.headers['x-forwarded-host'] ?? req.get('host') ?? '').split(',')[0].trim();
+  return host ? `${proto}://${host}` : '';
 }
 
 function buildGreenWebhookUrl() {
@@ -238,6 +246,21 @@ router.post('/', requireAdmin, async (req, res, next) => {
       return sendGreenRouteError(res, err);
     }
 
+    // Point this number's webhook at the API so incoming messages reach the bot
+    // (best effort; skipped on localhost where Green API cannot reach us).
+    let webhookSynced = false;
+    let webhookError;
+    const requestBase = requestBaseUrl(req);
+    if (requestBase && !/^https?:\/\/(localhost|127\.|\[::1\])/i.test(requestBase)) {
+      try {
+        await setGreenWebhook(creds, `${requestBase}/api/webhook/green-api`);
+        invalidateGreenStateCache(creds);
+        webhookSynced = true;
+      } catch (err) {
+        webhookError = err.message;
+      }
+    }
+
     return res.status(201).json({
       provider: 'green-api',
       instance: serializeGreenInstance(row, connectionState),
@@ -247,6 +270,8 @@ router.post('/', requireAdmin, async (req, res, next) => {
       simulationMode: false,
       message,
       webhookUrl: buildGreenWebhookUrl(),
+      webhookSynced,
+      webhookError,
     });
   } catch (err) {
     next(err);
