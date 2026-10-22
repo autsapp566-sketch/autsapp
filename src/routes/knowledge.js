@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticate, attachUser } from '../middleware/auth.js';
-import { requireAdmin } from '../middleware/requireAdmin.js';
+import { requirePermission } from '../middleware/requirePermission.js';
 import { requireAgent } from '../middleware/requireAgent.js';
 import {
   createKnowledgeItem,
@@ -27,7 +27,7 @@ function requestBaseUrl(req) {
   return `${proto}://${host}`;
 }
 
-router.post('/upload-images', requireAdmin, (req, res, next) => {
+router.post('/upload-images', requirePermission('knowledgeEdit'), (req, res, next) => {
   uploadProductImages.array('images', 12)(req, res, async (err) => {
     if (err) {
       return next(err);
@@ -47,7 +47,7 @@ router.post('/upload-images', requireAdmin, (req, res, next) => {
 });
 
 /** Fill title / description / colors from product photos (OpenAI vision). */
-router.post('/analyze-images', requireAdmin, async (req, res, next) => {
+router.post('/analyze-images', requirePermission('knowledgeEdit'), async (req, res, next) => {
   try {
     const result = await analyzeProductImages(req.body?.imageUrls);
     res.json(result);
@@ -59,7 +59,7 @@ router.post('/analyze-images', requireAdmin, async (req, res, next) => {
   }
 });
 
-router.get('/', async (req, res, next) => {
+router.get('/', requirePermission('knowledge', 'knowledgeEdit'), async (req, res, next) => {
   try {
     const filter = typeof req.query.type === 'string' ? req.query.type.toLowerCase() : 'all';
     const [items, allItems] = await Promise.all([
@@ -78,7 +78,7 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-router.post('/', requireAdmin, async (req, res, next) => {
+router.post('/', requirePermission('knowledgeEdit'), async (req, res, next) => {
   try {
     const item = await createKnowledgeItem(req.body ?? {});
     res.status(201).json({ item });
@@ -87,7 +87,7 @@ router.post('/', requireAdmin, async (req, res, next) => {
   }
 });
 
-router.post('/ai-copilot', requireAdmin, async (req, res, next) => {
+router.post('/ai-copilot', requirePermission('knowledgeEdit'), async (req, res, next) => {
   try {
     const items = await generateKnowledgeWithCopilot(req.body?.brief);
     res.status(201).json({ items, message: `تم توليد ${items.length} عنصر` });
@@ -96,7 +96,7 @@ router.post('/ai-copilot', requireAdmin, async (req, res, next) => {
   }
 });
 
-router.patch('/:id', requireAdmin, async (req, res, next) => {
+router.patch('/:id', requirePermission('knowledgeEdit'), async (req, res, next) => {
   try {
     const item = await updateKnowledgeItem(req.params.id, req.body ?? {});
     res.json({ item });
@@ -105,7 +105,7 @@ router.patch('/:id', requireAdmin, async (req, res, next) => {
   }
 });
 
-router.delete('/:id', requireAdmin, async (req, res, next) => {
+router.delete('/:id', requirePermission('knowledgeEdit'), async (req, res, next) => {
   try {
     await deleteKnowledgeItem(req.params.id);
     res.json({ ok: true });

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchLeads } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useSocket } from '../context/SocketContext.jsx';
+import { can } from '../lib/access.js';
 import {
   loadSoundPrefs,
   playRingtone,
@@ -125,7 +126,8 @@ export function useLeadSoundAlerts() {
   );
 
   useEffect(() => {
-    if (!user) return undefined;
+    // Agents without access to leads/chats cannot (and need not) poll them.
+    if (!user || !can(user, 'leads', 'chats')) return undefined;
     let stopped = false;
 
     async function tick() {

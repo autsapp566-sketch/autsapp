@@ -1,13 +1,14 @@
 import express from 'express';
 import { authenticate, attachUser } from '../middleware/auth.js';
 import { requireAgent } from '../middleware/requireAgent.js';
+import { requirePermission } from '../middleware/requirePermission.js';
 import { qualifyLead } from '../services/aiQualifier.js';
 import { getAiSettings } from '../services/aiSettings.js';
 import { transcribeWhatsAppAudio, synthesizeWhatsAppSpeech } from '../services/voiceAi.js';
 
 const router = express.Router();
 
-router.use(authenticate, attachUser, requireAgent);
+router.use(authenticate, attachUser, requireAgent, requirePermission('playground'));
 
 router.get('/status', async (_req, res, next) => {
   try {

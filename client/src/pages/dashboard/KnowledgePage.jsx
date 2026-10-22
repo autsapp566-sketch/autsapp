@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { can } from '../../lib/access.js';
 import {
   createKnowledgeItem,
   deleteKnowledgeItem,
@@ -381,7 +382,7 @@ function Modal({ title, onClose, children, wide = false }) {
 
 export default function KnowledgePage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = can(user, 'knowledgeEdit');
 
   const [tab, setTab] = useState('all');
   const [items, setItems] = useState([]);

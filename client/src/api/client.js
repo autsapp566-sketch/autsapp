@@ -111,6 +111,22 @@ export function fetchAdminAlerts(after) {
   return apiFetch(`/api/alerts${qs}`);
 }
 
+export function fetchTeam() {
+  return apiFetch('/api/team');
+}
+
+export function createTeamMember(payload) {
+  return apiFetch('/api/team', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export function updateTeamMember(id, payload) {
+  return apiFetch(`/api/team/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+}
+
+export function deleteTeamMember(id) {
+  return apiFetch(`/api/team/${id}`, { method: 'DELETE' });
+}
+
 export function fetchHandoffForward() {
   return apiFetch('/api/settings/handoff-forward');
 }

@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticate, attachUser } from '../middleware/auth.js';
 import { requireAgent } from '../middleware/requireAgent.js';
+import { requirePermission } from '../middleware/requirePermission.js';
 import { serializeLead, serializeMessage } from '../lib/serializers.js';
 import { prisma } from '../lib/prisma.js';
 import { sendAgentWhatsAppMessage, sendAgentWhatsAppVoice } from '../services/agentMessaging.js';
@@ -12,7 +13,7 @@ const LIST_STATUSES = new Set(['QUALIFIED', 'HANDED_OFF', 'QUALIFYING', 'NEW', '
 
 router.use(authenticate, attachUser, requireAgent);
 
-router.get('/', async (req, res, next) => {
+router.get('/', requirePermission('leads', 'chats'), async (req, res, next) => {
   try {
     const raw = typeof req.query.status === 'string' ? req.query.status : 'QUALIFIED,HANDED_OFF';
     const statuses = raw
@@ -53,7 +54,7 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', requirePermission('leads', 'chats'), async (req, res, next) => {
   try {
     const lead = await prisma.lead.findUnique({
       where: { id: req.params.id },
@@ -101,7 +102,7 @@ async function handleAgentSendMessage(req, res, next) {
   }
 }
 
-router.post('/:id/toggle-ai', async (req, res, next) => {
+router.post('/:id/toggle-ai', requirePermission('takeover'), async (req, res, next) => {
   try {
     const aiPaused = Boolean(req.body?.aiPaused);
     const updated = await setLeadAiPaused(req.params.id, aiPaused, req.user.id);
@@ -114,7 +115,7 @@ router.post('/:id/toggle-ai', async (req, res, next) => {
   }
 });
 
-router.patch('/:id/takeover', async (req, res, next) => {
+router.patch('/:id/takeover', requirePermission('takeover'), async (req, res, next) => {
   try {
     const enabled = Boolean(req.body?.enabled);
     const updated = await setLeadAiPaused(req.params.id, enabled, req.user.id);
@@ -130,6 +131,7 @@ router.patch('/:id/takeover', async (req, res, next) => {
 /** Raw audio body (Content-Type: audio/mpeg) recorded in the dashboard. */
 router.post(
   '/:id/send-voice',
+  requirePermission('reply'),
   express.raw({ type: () => true, limit: '4mb' }),
   async (req, res, next) => {
     try {
@@ -151,8 +153,8 @@ router.post(
   }
 );
 
-router.post('/:id/send-message', handleAgentSendMessage);
+router.post('/:id/send-message', requirePermission('reply'), handleAgentSendMessage);
 
-router.post('/:id/messages', handleAgentSendMessage);
+router.post('/:id/messages', requirePermission('reply'), handleAgentSendMessage);
 
 export default router;

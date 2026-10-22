@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { authenticate, attachUser } from '../middleware/auth.js';
 import { prisma } from '../lib/prisma.js';
+import { getUserAccess } from '../services/agentAccess.js';
 
 const router = express.Router();
 
@@ -35,13 +36,18 @@ router.post('/login', async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
+    const access = await getUserAccess(user);
+    if (!access.active) {
+      return res.status(403).json({ error: 'تم تعطيل حسابك. تواصل مع المدير.' });
+    }
+
     const token = jwt.sign({ sub: user.id, role: user.role }, env.jwtSecret, {
       expiresIn: env.jwtExpiresIn,
     });
 
     res.json({
       token,
-      user: publicUser(user),
+      user: { ...publicUser(user), permissions: access.permissions },
     });
   } catch (err) {
     next(err);
