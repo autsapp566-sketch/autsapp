@@ -92,7 +92,7 @@ export default function LoginPage() {
                 'w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-brand-500/30',
                 fieldErrors.email ? 'border-red-300 bg-red-50/50' : 'border-slate-200 bg-white',
               ].join(' ')}
-              placeholder="agent@example.com"
+              placeholder="name@company.com"
             />
             {fieldErrors.email ? (
               <p className="mt-1 text-xs text-red-600">{fieldErrors.email}</p>
@@ -130,9 +130,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-slate-400">
-          تجريبي: admin@example.com / Admin123! · agent@example.com / Agent123!
-        </p>
       </div>
     </div>
   );

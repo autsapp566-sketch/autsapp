@@ -10,20 +10,32 @@ if (process.env.DIRECT_URL?.trim()) {
 
 const prisma = new PrismaClient();
 
-const users = [
-  {
-    email: 'admin@example.com',
-    password: 'Admin123!',
-    role: 'ADMIN',
-  },
-  {
-    email: 'agent@example.com',
-    password: 'Agent123!',
-    role: 'CONFIRMATION_AGENT',
-  },
-];
+// Credentials come from .env (no passwords are stored in the repository).
+// Tip: wrap values in quotes if they contain # or spaces, e.g. ADMIN_PASSWORD="my#pass".
+function userFromEnv(prefix, role) {
+  const email = process.env[`${prefix}_EMAIL`]?.trim().toLowerCase();
+  const password = process.env[`${prefix}_PASSWORD`];
+  if (!email && !password) {
+    return null;
+  }
+  if (!email || !password) {
+    throw new Error(`${prefix}_EMAIL and ${prefix}_PASSWORD must both be set in .env`);
+  }
+  if (password.length < 8) {
+    throw new Error(`${prefix}_PASSWORD must be at least 8 characters`);
+  }
+  return { email, password, role };
+}
+
+const users = [userFromEnv('ADMIN', 'ADMIN'), userFromEnv('AGENT', 'CONFIRMATION_AGENT')].filter(Boolean);
 
 async function main() {
+  if (users.length === 0) {
+    throw new Error(
+      'Set ADMIN_EMAIL / ADMIN_PASSWORD (and optionally AGENT_EMAIL / AGENT_PASSWORD) in .env before seeding.'
+    );
+  }
+
   for (const entry of users) {
     const password = await bcrypt.hash(entry.password, 12);
     await prisma.user.upsert({
