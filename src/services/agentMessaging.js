@@ -3,6 +3,7 @@ import { sendWhatsAppAudioFile, sendWhatsAppText } from './whatsappMessaging.js'
 import { broadcastMessageCreated } from './notifications.js';
 import { saveUploadedImage } from './uploadedImages.js';
 import { getAiSettings } from './aiSettings.js';
+import { sendKeyForLead } from './whatsappInstanceStore.js';
 
 /**
  * @param {string} leadId
@@ -22,16 +23,21 @@ export async function sendAgentWhatsAppMessage(leadId, content, instance) {
     throw err;
   }
 
+  // Strict isolation: always answer from the number this conversation belongs to (the client-supplied
+  // `instance` is only a fallback for legacy conversations that have no number).
+  const sendKey = (await sendKeyForLead(lead)) ?? instance;
+
   // Send first: if WhatsApp rejects it, nothing is saved and the agent sees the real error.
   await sendWhatsAppText({
     phone: lead.phone,
     text,
-    instance,
+    instance: sendKey,
   });
 
   const message = await prisma.message.create({
     data: {
       leadId: lead.id,
+      instanceId: lead.instanceId,
       sender: 'AGENT',
       content: text,
     },
@@ -104,12 +110,13 @@ export async function sendAgentWhatsAppVoice({ leadId, buffer, mimeType, request
     phone: lead.phone,
     audioUrl,
     fileName: `voice-${id.slice(0, 8)}.${ext}`,
-    instance,
+    instance: (await sendKeyForLead(lead)) ?? instance,
   });
 
   const message = await prisma.message.create({
     data: {
       leadId: lead.id,
+      instanceId: lead.instanceId,
       sender: 'AGENT',
       content: `[VOICE: ${audioUrl}]`,
     },

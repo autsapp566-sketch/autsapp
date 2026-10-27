@@ -27,6 +27,27 @@ export async function findInstanceRow(key) {
 }
 
 /**
+ * Database id of the number a webhook belongs to (Evolution instanceName or Green idInstance).
+ * @returns {Promise<string | null>} null when the key matches no registered number
+ */
+export async function resolveInstanceId(key) {
+  const row = await findInstanceRow(key);
+  return row?.id ?? null;
+}
+
+/**
+ * Key the messaging layer understands for a stored conversation's number
+ * (Evolution instanceName, or the Green instance id for legacy rows). Undefined = default number.
+ * @param {{ instanceId?: string | null }} lead
+ */
+export async function sendKeyForLead(lead) {
+  if (!lead?.instanceId) return undefined;
+  const row = await prisma.whatsAppInstance.findUnique({ where: { id: lead.instanceId } });
+  if (!row) return undefined;
+  return isLegacyGreenRow(row) ? row.greenInstanceId ?? undefined : row.instanceName;
+}
+
+/**
  * Migration helper: once an Evolution number is connected it replaces a legacy Green API
  * default (or a missing default), so agent replies and notifications leave from the new number.
  * @returns {Promise<boolean>} true if the default changed

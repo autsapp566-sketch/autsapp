@@ -100,6 +100,10 @@ model WhatsAppInstance {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  /// Chats / messages received on this number (strict per-number isolation).
+  leads    Lead[]
+  messages Message[]
+
   @@index([greenInstanceId])
 }
 
@@ -112,15 +116,21 @@ model Lead {
   qualificationScore  Int?
   summary             String?
   assignedToId        String?
+  /// WhatsApp number (instance) this conversation belongs to. The same customer phone writing to two
+  /// numbers is two separate conversations. NULL only for legacy rows / unknown instances.
+  instanceId          String?
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
 
-  assignedTo User?     @relation("LeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedTo User?              @relation("LeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  instance   WhatsAppInstance?  @relation(fields: [instanceId], references: [id], onDelete: SetNull)
   messages   Message[]
 
   @@index([phone])
   @@index([status])
   @@index([assignedToId])
+  @@index([instanceId, phone])
+  @@index([instanceId, updatedAt])
 }
 
 model Message {
@@ -128,10 +138,14 @@ model Message {
   leadId    String
   sender    MessageSender
   content   String
+  /// Same number as the owning Lead (denormalised so messages can be filtered/audited per number).
+  instanceId String?
   createdAt DateTime      @default(now())
 
-  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  lead     Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  instance WhatsAppInstance? @relation(fields: [instanceId], references: [id], onDelete: SetNull)
 
   @@index([leadId])
   @@index([createdAt])
+  @@index([instanceId])
 }

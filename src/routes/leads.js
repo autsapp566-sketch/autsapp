@@ -13,6 +13,45 @@ const LIST_STATUSES = new Set(['QUALIFIED', 'HANDED_OFF', 'QUALIFYING', 'NEW', '
 
 router.use(authenticate, attachUser, requireAgent);
 
+/**
+ * Per-number isolation filter from `?instanceId=`:
+ *  - missing/empty  -> no restriction (all numbers; used by cross-number alerts)
+ *  - "unassigned"   -> legacy conversations that belong to no registered number
+ *  - <id>           -> only that number's conversations
+ */
+function instanceWhere(raw) {
+  const value = typeof raw === 'string' ? raw.trim() : '';
+  if (!value) return {};
+  if (value === 'unassigned') return { instanceId: null };
+  return { instanceId: value };
+}
+
+/** Numbers available in the live-chat selector, with conversation counts (cheap: no Evolution calls). */
+router.get('/instances', requirePermission('leads', 'chats'), async (_req, res, next) => {
+  try {
+    const [rows, counts, unassigned] = await Promise.all([
+      prisma.whatsAppInstance.findMany({ orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] }),
+      prisma.lead.groupBy({ by: ['instanceId'], _count: { _all: true }, where: { instanceId: { not: null } } }),
+      prisma.lead.count({ where: { instanceId: null } }),
+    ]);
+    const countById = new Map(counts.map((c) => [c.instanceId, c._count._all]));
+    res.json({
+      instances: rows.map((row) => ({
+        id: row.id,
+        instanceName: row.instanceName,
+        label: row.label || row.instanceName,
+        phone: row.phone,
+        isDefault: row.isDefault,
+        legacy: row.provider === 'green',
+        leadCount: countById.get(row.id) ?? 0,
+      })),
+      unassignedCount: unassigned,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/', requirePermission('leads', 'chats'), async (req, res, next) => {
   try {
     const raw = typeof req.query.status === 'string' ? req.query.status : 'QUALIFIED,HANDED_OFF';
@@ -21,7 +60,10 @@ router.get('/', requirePermission('leads', 'chats'), async (req, res, next) => {
       .map((s) => s.trim().toUpperCase())
       .filter((s) => LIST_STATUSES.has(s));
 
-    const where = statuses.length ? { status: { in: statuses } } : { status: { in: ['QUALIFIED', 'HANDED_OFF'] } };
+    const where = {
+      ...(statuses.length ? { status: { in: statuses } } : { status: { in: ['QUALIFIED', 'HANDED_OFF'] } }),
+      ...instanceWhere(req.query.instanceId),
+    };
 
     const leads = await prisma.lead.findMany({
       where,
@@ -56,8 +98,9 @@ router.get('/', requirePermission('leads', 'chats'), async (req, res, next) => {
 
 router.get('/:id', requirePermission('leads', 'chats'), async (req, res, next) => {
   try {
-    const lead = await prisma.lead.findUnique({
-      where: { id: req.params.id },
+    // findFirst + instance filter: a conversation of another number is "not found" for this view.
+    const lead = await prisma.lead.findFirst({
+      where: { id: req.params.id, ...instanceWhere(req.query.instanceId) },
       include: {
         messages: { orderBy: { createdAt: 'asc' } },
         assignedTo: { select: { id: true, email: true, role: true } },

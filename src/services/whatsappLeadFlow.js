@@ -8,6 +8,7 @@ import { broadcastLeadUpdated, broadcastMessageCreated, notifyLeadQualified } fr
 import { forwardHandoffToAgents } from './handoffForward.js';
 import { createAdminAlert } from './adminAlerts.js';
 import { resolveAdContext } from './adContext.js';
+import { resolveInstanceId } from './whatsappInstanceStore.js';
 import { prisma } from '../lib/prisma.js';
 
 /** @type {Record<string, import('@prisma/client').LeadStatus>} */
@@ -24,12 +25,15 @@ const HANDOFF_LABELS = {
 };
 
 /**
+ * A conversation is unique per (WhatsApp number, customer phone): the same customer writing to two of
+ * our numbers gets two independent conversations.
  * @param {string} phone
  * @param {string | null | undefined} pushName
+ * @param {string | null | undefined} instanceId database id of the WhatsApp number that received it
  */
-export async function findOrCreateLead(phone, pushName) {
+export async function findOrCreateLead(phone, pushName, instanceId = null) {
   let lead = await prisma.lead.findFirst({
-    where: { phone },
+    where: { phone, instanceId: instanceId ?? null },
     orderBy: { createdAt: 'desc' },
   });
 
@@ -48,6 +52,7 @@ export async function findOrCreateLead(phone, pushName) {
       phone,
       name: pushName ?? null,
       status: 'NEW',
+      instanceId: instanceId ?? null,
     },
   });
 }
@@ -87,7 +92,12 @@ function resolveLeadStatus(aiStatus, currentStatus, aiPaused) {
  * }} input
  */
 export async function processIncomingWhatsAppMessage(input) {
-  const lead = await findOrCreateLead(input.phone, input.pushName);
+  // Strict isolation: the conversation is bound to the number that received the message.
+  const instanceId = await resolveInstanceId(input.instance);
+  if (!instanceId) {
+    console.warn(`[whatsapp] message for unregistered instance "${input.instance}" saved without a number`);
+  }
+  const lead = await findOrCreateLead(input.phone, input.pushName, instanceId);
 
   // Customer came from an ad / sent a product link: work out which product it is.
   const adContext = input.ad ? await resolveAdContext(input.ad) : null;
@@ -103,6 +113,7 @@ export async function processIncomingWhatsAppMessage(input) {
   const userMessage = await prisma.message.create({
     data: {
       leadId: lead.id,
+      instanceId: lead.instanceId,
       sender: 'USER',
       content: userContent,
     },
@@ -159,6 +170,7 @@ export async function processIncomingWhatsAppMessage(input) {
   const botMessage = await prisma.message.create({
     data: {
       leadId: lead.id,
+      instanceId: lead.instanceId,
       sender: 'BOT',
       content: imageUrls.length ? `${outboundText}\n📷 (${imageUrls.length} صور)` : outboundText,
     },

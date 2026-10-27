@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   fetchLead,
+  fetchLeadInstances,
   fetchLeads,
   sendLeadMessage,
   sendLeadVoice,
@@ -156,7 +157,7 @@ function MicIcon({ className = 'h-5 w-5' }) {
   );
 }
 
-function ConversationPanel({ leadId, onLeadChange, onMobileBack, onToast }) {
+function ConversationPanel({ leadId, instanceId = '', onLeadChange, onMobileBack, onToast }) {
   const [lead, setLead] = useState(null);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -256,7 +257,7 @@ function ConversationPanel({ leadId, onLeadChange, onMobileBack, onToast }) {
     setLoading(true);
     setError('');
     try {
-      const data = await fetchLead(leadId);
+      const data = await fetchLead(leadId, instanceId);
       setLead(data.lead);
       setMessages(data.messages);
       onLeadChange?.(data.lead, data.messages);
@@ -265,7 +266,7 @@ function ConversationPanel({ leadId, onLeadChange, onMobileBack, onToast }) {
     } finally {
       setLoading(false);
     }
-  }, [leadId, onLeadChange]);
+  }, [leadId, instanceId, onLeadChange]);
 
   useEffect(() => {
     loadLead();
@@ -280,7 +281,7 @@ function ConversationPanel({ leadId, onLeadChange, onMobileBack, onToast }) {
       return undefined;
     }
     const id = setInterval(() => {
-      fetchLead(leadId)
+      fetchLead(leadId, instanceId)
         .then((data) => {
           setLead(data.lead);
           setMessages(data.messages);
@@ -289,7 +290,7 @@ function ConversationPanel({ leadId, onLeadChange, onMobileBack, onToast }) {
         .catch(() => {});
     }, 8000);
     return () => clearInterval(id);
-  }, [leadId, socket, onLeadChange]);
+  }, [leadId, instanceId, socket, onLeadChange]);
 
   const appendMessage = useCallback((message) => {
     setMessages((prev) => {
@@ -594,7 +595,57 @@ function EmptyChatPlaceholder() {
   );
 }
 
+const INSTANCE_STORAGE_KEY = 'liveChat.instanceId';
+
+/** Does a conversation belong to the number currently shown? ('' = all numbers) */
+function belongsToInstance(lead, instanceId) {
+  if (!instanceId) return true;
+  if (instanceId === 'unassigned') return !lead?.instanceId;
+  return lead?.instanceId === instanceId;
+}
+
+/** Picks the number to show first: the remembered one, else the default, else the first. */
+function pickInitialInstance(data) {
+  const list = data.instances ?? [];
+  let stored = '';
+  try {
+    stored = localStorage.getItem(INSTANCE_STORAGE_KEY) ?? '';
+  } catch {
+    /* ignore */
+  }
+  if (stored === 'unassigned' && data.unassignedCount > 0) return stored;
+  if (stored && list.some((i) => i.id === stored)) return stored;
+  return (list.find((i) => i.isDefault) ?? list[0])?.id ?? '';
+}
+
+function InstanceSelector({ instances, unassignedCount, value, onChange }) {
+  if (instances.length === 0 && !unassignedCount) return null;
+  return (
+    <div>
+      <label className="mb-1 block text-[11px] font-semibold text-[#8696a0]">رقم واتساب</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-lg border border-[#2a3942] bg-[#2a3942] px-3 py-2 text-sm text-[#e9edef] outline-none focus:border-emerald-600/50"
+      >
+        {instances.map((inst) => (
+          <option key={inst.id} value={inst.id}>
+            {inst.label}
+            {inst.phone ? ` (+${inst.phone})` : ''}
+            {inst.legacy ? ' — Green (قديم)' : ''} · {inst.leadCount}
+          </option>
+        ))}
+        {unassignedCount > 0 ? <option value="unassigned">محادثات غير مرتبطة برقم · {unassignedCount}</option> : null}
+      </select>
+    </div>
+  );
+}
+
 export default function LiveChatView({ title = 'محادثات مباشرة', subtitle }) {
+  const [instances, setInstances] = useState([]);
+  const [unassignedCount, setUnassignedCount] = useState(0);
+  const [instanceId, setInstanceId] = useState('');
+  const [instancesReady, setInstancesReady] = useState(false);
   const [filterId, setFilterId] = useState('all');
   const [search, setSearch] = useState('');
   const [leads, setLeads] = useState([]);
@@ -610,15 +661,61 @@ export default function LiveChatView({ title = 'محادثات مباشرة', su
 
   const activeFilter = FILTER_TABS.find((t) => t.id === filterId) ?? FILTER_TABS[0];
 
+  // Numbers for the selector (loaded once; counts refresh when the selection changes).
+  const loadInstances = useCallback(async () => {
+    try {
+      const data = await fetchLeadInstances();
+      setInstances(data.instances ?? []);
+      setUnassignedCount(data.unassignedCount ?? 0);
+      return data;
+    } catch (err) {
+      setError(err.message ?? 'تعذر تحميل أرقام واتساب');
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadInstances().then((data) => {
+      if (cancelled) return;
+      if (data) setInstanceId(pickInitialInstance(data));
+      setInstancesReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadInstances]);
+
+  function handleInstanceChange(next) {
+    if (next === instanceId) return;
+    try {
+      localStorage.setItem(INSTANCE_STORAGE_KEY, next);
+    } catch {
+      /* ignore */
+    }
+    // Strict isolation: drop everything that belongs to the previous number before loading the new one.
+    setLeads([]);
+    setSelectedId(null);
+    setMobileShowChat(false);
+    setSearch('');
+    setLoading(true);
+    setInstanceId(next);
+    loadInstances();
+  }
+
   const loadLeads = useCallback(
     async (silent = false) => {
+      if (!instancesReady) {
+        return;
+      }
       if (!silent) {
         setLoading(true);
       }
       setError('');
       try {
-        const data = await fetchLeads(activeFilter.statuses);
-        setLeads(data.leads);
+        const data = await fetchLeads(activeFilter.statuses, instanceId);
+        // Ignore responses that raced with a number switch.
+        setLeads(data.leads.filter((l) => belongsToInstance(l, instanceId)));
       } catch (err) {
         setError(err.message ?? 'تعذر تحميل العملاء');
       } finally {
@@ -627,7 +724,7 @@ export default function LiveChatView({ title = 'محادثات مباشرة', su
         }
       }
     },
-    [activeFilter.statuses]
+    [activeFilter.statuses, instanceId, instancesReady]
   );
 
   useEffect(() => {
@@ -644,19 +741,22 @@ export default function LiveChatView({ title = 'محادثات مباشرة', su
 
   const onLeadUpdated = useCallback(
     (payload) => {
-      if (!payload?.lead) {
+      if (!payload?.lead || !belongsToInstance(payload.lead, instanceId)) {
         return;
       }
       setLeads((prev) => mergeLead(prev, payload.lead));
     },
-    []
+    [instanceId]
   );
 
-  const onQualified = useCallback((payload) => {
-    if (payload?.lead) {
-      setLeads((prev) => mergeLead(prev, payload.lead));
-    }
-  }, []);
+  const onQualified = useCallback(
+    (payload) => {
+      if (payload?.lead && belongsToInstance(payload.lead, instanceId)) {
+        setLeads((prev) => mergeLead(prev, payload.lead));
+      }
+    },
+    [instanceId]
+  );
 
   const onMessage = useCallback(
     (payload) => {
@@ -771,7 +871,9 @@ export default function LiveChatView({ title = 'محادثات مباشرة', su
         >
           {selectedId ? (
             <ConversationPanel
+              key={`${instanceId}:${selectedId}`}
               leadId={selectedId}
+              instanceId={instanceId}
               onLeadChange={handleLeadChange}
               onMobileBack={() => setMobileShowChat(false)}
               onToast={setToast}
@@ -789,6 +891,12 @@ export default function LiveChatView({ title = 'محادثات مباشرة', su
           ].join(' ')}
         >
           <div className="shrink-0 space-y-3 border-b border-[#2a3942] bg-[#202c33] p-3">
+            <InstanceSelector
+              instances={instances}
+              unassignedCount={unassignedCount}
+              value={instanceId}
+              onChange={handleInstanceChange}
+            />
             <div className="relative">
               <span className="pointer-events-none absolute inset-y-0 start-3 flex items-center text-[#8696a0]">
                 🔍

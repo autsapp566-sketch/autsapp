@@ -83,13 +83,25 @@ export function fetchAnalyticsOverview() {
   return apiFetch('/api/analytics/overview');
 }
 
-export function fetchLeads(statuses = ['QUALIFIED', 'HANDED_OFF']) {
-  const status = statuses.join(',');
-  return apiFetch(`/api/leads?status=${encodeURIComponent(status)}`);
+/**
+ * @param {string[]} statuses
+ * @param {string} [instanceId] WhatsApp number id, "unassigned", or empty for all numbers
+ */
+export function fetchLeads(statuses = ['QUALIFIED', 'HANDED_OFF'], instanceId = '') {
+  const params = new URLSearchParams({ status: statuses.join(',') });
+  if (instanceId) params.set('instanceId', instanceId);
+  return apiFetch(`/api/leads?${params.toString()}`);
 }
 
-export function fetchLead(id) {
-  return apiFetch(`/api/leads/${id}`);
+/** @param {string} [instanceId] when set, a conversation of another number is answered with 404 */
+export function fetchLead(id, instanceId = '') {
+  const qs = instanceId ? `?instanceId=${encodeURIComponent(instanceId)}` : '';
+  return apiFetch(`/api/leads/${id}${qs}`);
+}
+
+/** WhatsApp numbers for the live-chat selector (with conversation counts). */
+export function fetchLeadInstances() {
+  return apiFetch('/api/leads/instances');
 }
 
 export function setLeadTakeover(id, enabled) {
