@@ -37,7 +37,7 @@ export async function attachUser(req, res, next) {
       return res.status(403).json({ error: 'تم تعطيل حسابك. تواصل مع المدير.' });
     }
 
-    req.user = { ...user, permissions: access.permissions };
+    req.user = { ...user, permissions: access.permissions, instanceIds: access.instanceIds };
     next();
   } catch (err) {
     next(err);

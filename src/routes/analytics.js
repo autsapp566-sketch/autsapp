@@ -8,9 +8,10 @@ const router = express.Router();
 
 router.use(authenticate, attachUser, requireAgent, requirePermission('analytics'));
 
-router.get('/overview', async (_req, res, next) => {
+router.get('/overview', async (req, res, next) => {
   try {
-    const overview = await getAnalyticsOverview();
+    // Agents restricted to some WhatsApp numbers only get statistics of those numbers.
+    const overview = await getAnalyticsOverview({ instanceIds: req.user.instanceIds });
     res.json(overview);
   } catch (err) {
     next(err);

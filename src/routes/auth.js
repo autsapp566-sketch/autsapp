@@ -47,7 +47,7 @@ router.post('/login', async (req, res, next) => {
 
     res.json({
       token,
-      user: { ...publicUser(user), permissions: access.permissions },
+      user: { ...publicUser(user), permissions: access.permissions, instanceIds: access.instanceIds },
     });
   } catch (err) {
     next(err);

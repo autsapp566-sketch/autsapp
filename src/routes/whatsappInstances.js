@@ -144,9 +144,14 @@ router.get('/webhook-log', requireAdmin, async (_req, res, next) => {
   }
 });
 
-router.get('/', async (_req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
-    const rows = await prisma.whatsAppInstance.findMany({ orderBy: { createdAt: 'desc' } });
+    // Agents restricted to some numbers only see those numbers.
+    const allowed = req.user?.instanceIds;
+    const rows = await prisma.whatsAppInstance.findMany({
+      where: Array.isArray(allowed) ? { id: { in: allowed } } : undefined,
+      orderBy: { createdAt: 'desc' },
+    });
     const instances = await Promise.all(
       rows.map(async (row) => {
         const { state, error } = await stateOf(row);

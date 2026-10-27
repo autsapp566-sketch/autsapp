@@ -4,7 +4,7 @@ import { authenticate, attachUser } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { prisma } from '../lib/prisma.js';
 import { PERMISSIONS, ROLE_PRESETS, normalizePermissions } from '../lib/permissions.js';
-import { loadAccessMap, removeUserAccess, setUserAccess } from '../services/agentAccess.js';
+import { loadAccessMap, normalizeInstanceIds, removeUserAccess, setUserAccess } from '../services/agentAccess.js';
 
 const router = express.Router();
 
@@ -28,6 +28,8 @@ function serializeMember(user, access, leadsCount) {
     createdAt: user.createdAt,
     active: isAdmin ? true : access?.active !== false,
     permissions: normalizePermissions(isAdmin ? PERMISSIONS.map((p) => p.key) : access?.permissions),
+    // null = every WhatsApp number; array = only these numbers (WhatsAppInstance ids)
+    instanceIds: isAdmin ? null : normalizeInstanceIds(access?.instanceIds),
     assignedLeads: leadsCount ?? 0,
   };
 }
@@ -45,17 +47,26 @@ async function loadMember(id) {
 
 router.get('/', async (_req, res, next) => {
   try {
-    const [users, map] = await Promise.all([
+    const [users, map, instances] = await Promise.all([
       prisma.user.findMany({
         orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
         select: { id: true, email: true, role: true, createdAt: true, _count: { select: { assignedLeads: true } } },
       }),
       loadAccessMap(),
+      prisma.whatsAppInstance.findMany({ orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] }),
     ]);
     res.json({
       members: users.map((u) => serializeMember(u, map[u.id], u._count.assignedLeads)),
       catalog: PERMISSIONS,
       presets: ROLE_PRESETS,
+      // WhatsApp numbers the admin can assign to an agent
+      instances: instances.map((i) => ({
+        id: i.id,
+        label: i.label || i.instanceName,
+        phone: i.phone,
+        isDefault: i.isDefault,
+        legacy: i.provider === 'green',
+      })),
     });
   } catch (err) {
     next(err);
@@ -81,7 +92,11 @@ router.post('/', async (req, res, next) => {
       data: { email, password: await bcrypt.hash(password, 12), role: 'CONFIRMATION_AGENT' },
       select: { id: true, email: true, role: true, createdAt: true },
     });
-    const access = await setUserAccess(user.id, { active: true, permissions: req.body?.permissions });
+    const access = await setUserAccess(user.id, {
+      active: true,
+      permissions: req.body?.permissions,
+      instanceIds: req.body?.instanceIds,
+    });
     res.status(201).json({ member: serializeMember(user, access, 0) });
   } catch (err) {
     next(err);
@@ -109,6 +124,8 @@ router.patch('/:id', async (req, res, next) => {
     const access = await setUserAccess(user.id, {
       active: body.active === undefined ? undefined : Boolean(body.active),
       permissions: body.permissions,
+      // undefined = keep, null = all numbers, [ids] = restrict
+      instanceIds: body.instanceIds,
     });
     res.json({ member: serializeMember(user, access, user._count.assignedLeads) });
   } catch (err) {

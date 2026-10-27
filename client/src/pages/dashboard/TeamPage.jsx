@@ -18,6 +18,94 @@ function presetIdFor(presets, permissions) {
   return presets.find((p) => sameSet(p.permissions, keys))?.id ?? 'custom';
 }
 
+/** null = every number; array = only the listed WhatsApp numbers */
+function sameInstanceScope(a, b) {
+  if (a === null || b === null) return a === b;
+  return sameSet(a, b);
+}
+
+function InstanceAccessEditor({ instances, value, onChange, disabled }) {
+  const restricted = Array.isArray(value);
+
+  return (
+    <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+      <div>
+        <p className="text-sm font-medium text-white">أرقام واتساب المسموحة</p>
+        <p className="text-xs text-slate-400">
+          الأرقام التي يستطيع الوكيل رؤية محادثاتها والرد عليها في «محادثات الواتساب الحية». أي رقم غير محدد لا يظهر له نهائياً.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-4 text-sm text-slate-200">
+        <label className="flex cursor-pointer items-center gap-2">
+          <input
+            type="radio"
+            checked={!restricted}
+            disabled={disabled}
+            onChange={() => onChange(null)}
+            className="h-4 w-4 accent-emerald-500"
+          />
+          كل الأرقام (بما فيها الأرقام الجديدة)
+        </label>
+        <label className="flex cursor-pointer items-center gap-2">
+          <input
+            type="radio"
+            checked={restricted}
+            disabled={disabled}
+            onChange={() => onChange(instances.map((i) => i.id))}
+            className="h-4 w-4 accent-emerald-500"
+          />
+          أرقام محددة فقط
+        </label>
+      </div>
+
+      {restricted ? (
+        instances.length === 0 ? (
+          <p className="text-xs text-amber-300">لا توجد أرقام واتساب مربوطة بعد.</p>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {instances.map((inst) => {
+              const checked = value.includes(inst.id);
+              return (
+                <label
+                  key={inst.id}
+                  className={[
+                    'flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 transition',
+                    checked ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-slate-800 bg-slate-950/50 hover:border-slate-700',
+                  ].join(' ')}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={disabled}
+                    onChange={(e) =>
+                      onChange(e.target.checked ? [...value, inst.id] : value.filter((id) => id !== inst.id))
+                    }
+                    className="h-4 w-4 accent-emerald-500"
+                  />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-white">
+                      {inst.label}
+                      {inst.legacy ? <span className="ms-2 text-[10px] text-amber-300">Green (قديم)</span> : null}
+                    </span>
+                    <span className="block text-xs text-slate-400" dir="ltr">
+                      {inst.phone ? `+${inst.phone}` : '—'}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        )
+      ) : null}
+
+      {restricted && value.length === 0 && instances.length > 0 ? (
+        <p className="text-xs text-amber-300">لم تحدد أي رقم: لن يرى هذا الوكيل أي محادثة.</p>
+      ) : null}
+    </div>
+  );
+}
+
 function PermissionEditor({ catalog, presets, permissions, onChange, disabled }) {
   const presetId = presetIdFor(presets, permissions);
 
@@ -73,8 +161,9 @@ function PermissionEditor({ catalog, presets, permissions, onChange, disabled })
   );
 }
 
-function MemberCard({ member, catalog, presets, onSaved, onDeleted, onError }) {
+function MemberCard({ member, catalog, presets, instances = [], onSaved, onDeleted, onError }) {
   const [permissions, setPermissions] = useState(member.permissions);
+  const [instanceIds, setInstanceIds] = useState(member.instanceIds ?? null);
   const [active, setActive] = useState(member.active);
   const [password, setPassword] = useState('');
   const [saving, setSaving] = useState(false);
@@ -84,20 +173,22 @@ function MemberCard({ member, catalog, presets, onSaved, onDeleted, onError }) {
   const dirty =
     password.length > 0 ||
     active !== member.active ||
+    !sameInstanceScope(instanceIds, member.instanceIds ?? null) ||
     !sameSet(enabledKeys(permissions), enabledKeys(member.permissions));
 
   const summary = useMemo(() => {
     if (isAdmin) return 'كل الصلاحيات';
     const count = enabledKeys(permissions).length;
     const preset = presets.find((p) => p.id === presetIdFor(presets, permissions));
-    return `${preset?.label ?? 'دور مخصص'} · ${count}/${catalog.length} صلاحيات`;
-  }, [isAdmin, permissions, presets, catalog.length]);
+    const scope = Array.isArray(instanceIds) ? ` · ${instanceIds.length} رقم واتساب` : '';
+    return `${preset?.label ?? 'دور مخصص'} · ${count}/${catalog.length} صلاحيات${scope}`;
+  }, [isAdmin, permissions, instanceIds, presets, catalog.length]);
 
   async function save() {
     setSaving(true);
     onError('');
     try {
-      const payload = { active, permissions };
+      const payload = { active, permissions, instanceIds };
       if (password) payload.password = password;
       const { member: saved } = await updateTeamMember(member.id, payload);
       setPassword('');
@@ -179,6 +270,8 @@ function MemberCard({ member, catalog, presets, onSaved, onDeleted, onError }) {
                 onChange={setPermissions}
               />
 
+              <InstanceAccessEditor instances={instances} value={instanceIds} onChange={setInstanceIds} />
+
               <label className="block max-w-sm text-sm text-slate-300">
                 <span className="mb-1 block font-medium">كلمة مرور جديدة (اختياري)</span>
                 <input
@@ -223,11 +316,13 @@ function MemberCard({ member, catalog, presets, onSaved, onDeleted, onError }) {
   );
 }
 
-function NewMemberForm({ catalog, presets, onCreated, onCancel, onError }) {
+function NewMemberForm({ catalog, presets, instances = [], onCreated, onCancel, onError }) {
   const defaultPreset = presets[0];
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [permissions, setPermissions] = useState(toMap(catalog, defaultPreset?.permissions ?? []));
+  // null = every WhatsApp number (including numbers linked later)
+  const [instanceIds, setInstanceIds] = useState(null);
   const [saving, setSaving] = useState(false);
 
   async function submit(e) {
@@ -235,7 +330,7 @@ function NewMemberForm({ catalog, presets, onCreated, onCancel, onError }) {
     setSaving(true);
     onError('');
     try {
-      const { member } = await createTeamMember({ email, password, permissions });
+      const { member } = await createTeamMember({ email, password, permissions, instanceIds });
       onCreated(member);
     } catch (err) {
       onError(err.message ?? 'تعذر إنشاء الحساب');
@@ -280,6 +375,8 @@ function NewMemberForm({ catalog, presets, onCreated, onCancel, onError }) {
 
       <PermissionEditor catalog={catalog} presets={presets} permissions={permissions} onChange={setPermissions} />
 
+      <InstanceAccessEditor instances={instances} value={instanceIds} onChange={setInstanceIds} />
+
       <div className="flex gap-3">
         <button
           type="submit"
@@ -304,6 +401,7 @@ export default function TeamPage() {
   const [members, setMembers] = useState([]);
   const [catalog, setCatalog] = useState([]);
   const [presets, setPresets] = useState([]);
+  const [instances, setInstances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
@@ -315,6 +413,7 @@ export default function TeamPage() {
       setMembers(data.members ?? []);
       setCatalog(data.catalog ?? []);
       setPresets(data.presets ?? []);
+      setInstances(data.instances ?? []);
     } catch (err) {
       setError(err.message ?? 'تعذر تحميل الفريق');
     } finally {
@@ -371,6 +470,7 @@ export default function TeamPage() {
         <NewMemberForm
           catalog={catalog}
           presets={presets}
+          instances={instances}
           onError={setError}
           onCancel={() => setAdding(false)}
           onCreated={(member) => {
@@ -387,10 +487,13 @@ export default function TeamPage() {
         <div className="space-y-3">
           {[...admins, ...agents].map((member) => (
             <MemberCard
-              key={`${member.id}:${member.active}:${enabledKeys(member.permissions).join(',')}`}
+              key={`${member.id}:${member.active}:${enabledKeys(member.permissions).join(',')}:${
+                member.instanceIds === null ? 'all' : (member.instanceIds ?? []).join(',')
+              }`}
               member={member}
               catalog={catalog}
               presets={presets}
+              instances={instances}
               onError={setError}
               onSaved={(saved) => {
                 setMembers((prev) => prev.map((m) => (m.id === saved.id ? saved : m)));

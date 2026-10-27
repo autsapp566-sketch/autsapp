@@ -2,8 +2,35 @@ import jwt from 'jsonwebtoken';
 import { Server } from 'socket.io';
 import { env } from '../config/env.js';
 import { serializeLead, serializeMessage } from '../lib/serializers.js';
+import { prisma } from '../lib/prisma.js';
+import { canSeeInstance, getUserAccess } from './agentAccess.js';
 /** @type {import('socket.io').Server | null} */
 let io = null;
+
+/** Is this socket's user allowed to see conversations of `leadInstanceId`? (admin / unrestricted = yes) */
+async function socketCanSee(socket, leadInstanceId) {
+  const access = await getUserAccess({ id: socket.data.userId, role: socket.data.userRole });
+  return access.active && canSeeInstance(access.instanceIds, leadInstanceId);
+}
+
+/** Emit to a room, but only to sockets whose user may see that WhatsApp number's conversations. */
+async function emitScoped(room, event, payload, leadInstanceId) {
+  if (!io) return;
+  try {
+    const sockets = await io.in(room).fetchSockets();
+    await Promise.all(
+      sockets.map(async (s) => {
+        try {
+          if (await socketCanSee(s, leadInstanceId)) s.emit(event, payload);
+        } catch (err) {
+          console.error('[socket] scoped emit failed:', err.message);
+        }
+      })
+    );
+  } catch (err) {
+    console.error('[socket] scoped emit failed:', err.message);
+  }
+}
 
 function parseCorsOrigins() {
   if (env.corsOrigin === '*') {
@@ -45,9 +72,16 @@ export function initRealtimeNotifications(httpServer) {
     }
     socket.join(`user:${socket.data.userId}`);
 
-    socket.on('lead:subscribe', (leadId) => {
-      if (typeof leadId === 'string' && leadId.length > 0) {
-        socket.join(`lead:${leadId}`);
+    socket.on('lead:subscribe', async (leadId) => {
+      if (typeof leadId !== 'string' || leadId.length === 0) return;
+      try {
+        // Agents limited to some WhatsApp numbers cannot follow another number's conversation.
+        const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { instanceId: true } });
+        if (lead && (await socketCanSee(socket, lead.instanceId))) {
+          socket.join(`lead:${leadId}`);
+        }
+      } catch (err) {
+        console.error('[socket] lead:subscribe failed:', err.message);
       }
     });
 
@@ -89,31 +123,35 @@ export async function notifyLeadQualified(lead) {
     at: new Date().toISOString(),
   };
 
+  payload.lead.instanceId = lead.instanceId ?? null;
+
   if (lead.assignedToId) {
-    io.to(`user:${lead.assignedToId}`).emit('lead:qualified', payload);
+    await emitScoped(`user:${lead.assignedToId}`, 'lead:qualified', payload, lead.instanceId);
     return;
   }
 
-  io.to('confirmation-agents').emit('lead:qualified', payload);
+  await emitScoped('confirmation-agents', 'lead:qualified', payload, lead.instanceId);
 }
 
 /**
  * @param {object} lead
  */
-export function broadcastLeadUpdated(lead) {
+export async function broadcastLeadUpdated(lead) {
   if (!io) {
     return;
   }
   const payload = { lead: serializeLead(lead) };
-  io.to('confirmation-agents').emit('lead:updated', payload);
-  io.to(`lead:${lead.id}`).emit('lead:updated', payload);
+  await Promise.all([
+    emitScoped('confirmation-agents', 'lead:updated', payload, lead.instanceId),
+    emitScoped(`lead:${lead.id}`, 'lead:updated', payload, lead.instanceId),
+  ]);
 }
 
 /**
  * @param {object} lead
  * @param {object} message
  */
-export function broadcastMessageCreated(lead, message) {
+export async function broadcastMessageCreated(lead, message) {
   if (!io) {
     return;
   }
@@ -121,6 +159,8 @@ export function broadcastMessageCreated(lead, message) {
     leadId: lead.id,
     message: serializeMessage(message),
   };
-  io.to(`lead:${lead.id}`).emit('message:new', payload);
-  io.to('confirmation-agents').emit('message:new', payload);
+  await Promise.all([
+    emitScoped(`lead:${lead.id}`, 'message:new', payload, lead.instanceId),
+    emitScoped('confirmation-agents', 'message:new', payload, lead.instanceId),
+  ]);
 }

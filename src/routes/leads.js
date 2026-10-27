@@ -6,6 +6,7 @@ import { serializeLead, serializeMessage } from '../lib/serializers.js';
 import { prisma } from '../lib/prisma.js';
 import { sendAgentWhatsAppMessage, sendAgentWhatsAppVoice } from '../services/agentMessaging.js';
 import { setLeadAiPaused } from '../services/leadTakeover.js';
+import { canSeeInstance } from '../services/agentAccess.js';
 
 const router = express.Router();
 
@@ -26,13 +27,49 @@ function instanceWhere(raw) {
   return { instanceId: value };
 }
 
-/** Numbers available in the live-chat selector, with conversation counts (cheap: no Evolution calls). */
-router.get('/instances', requirePermission('leads', 'chats'), async (_req, res, next) => {
+/**
+ * Combines the requested number filter with the agent's allowed numbers (set by the admin in
+ * "الفريق والصلاحيات"). An agent restricted to some numbers can never read or act on another number's
+ * conversations, whatever `?instanceId=` they send. `req.user.instanceIds === null` = unrestricted.
+ */
+function scopedInstanceWhere(req, raw) {
+  const requested = instanceWhere(raw);
+  const allowed = req.user.instanceIds;
+  if (!Array.isArray(allowed)) return requested;
+  if ('instanceId' in requested) {
+    const id = requested.instanceId;
+    return id && allowed.includes(id) ? { instanceId: id } : { instanceId: { in: [] } };
+  }
+  return { instanceId: { in: allowed } };
+}
+
+/** Per-conversation actions (read, take over, reply, voice): 404 when the number is not allowed for this agent. */
+router.param('id', async (req, res, next, id) => {
   try {
+    const allowed = req.user?.instanceIds;
+    if (!Array.isArray(allowed)) return next();
+    const lead = await prisma.lead.findUnique({ where: { id }, select: { instanceId: true } });
+    if (!lead || !canSeeInstance(allowed, lead.instanceId)) {
+      return res.status(404).json({ error: 'Lead not found' });
+    }
+    return next();
+  } catch (err) {
+    return next(err);
+  }
+});
+
+/** Numbers available in the live-chat selector, with conversation counts (cheap: no Evolution calls). */
+router.get('/instances', requirePermission('leads', 'chats'), async (req, res, next) => {
+  try {
+    const allowed = req.user.instanceIds;
+    const restricted = Array.isArray(allowed);
     const [rows, counts, unassigned] = await Promise.all([
-      prisma.whatsAppInstance.findMany({ orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] }),
+      prisma.whatsAppInstance.findMany({
+        where: restricted ? { id: { in: allowed } } : undefined,
+        orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+      }),
       prisma.lead.groupBy({ by: ['instanceId'], _count: { _all: true }, where: { instanceId: { not: null } } }),
-      prisma.lead.count({ where: { instanceId: null } }),
+      restricted ? Promise.resolve(0) : prisma.lead.count({ where: { instanceId: null } }),
     ]);
     const countById = new Map(counts.map((c) => [c.instanceId, c._count._all]));
     res.json({
@@ -62,7 +99,7 @@ router.get('/', requirePermission('leads', 'chats'), async (req, res, next) => {
 
     const where = {
       ...(statuses.length ? { status: { in: statuses } } : { status: { in: ['QUALIFIED', 'HANDED_OFF'] } }),
-      ...instanceWhere(req.query.instanceId),
+      ...scopedInstanceWhere(req, req.query.instanceId),
     };
 
     const leads = await prisma.lead.findMany({
@@ -100,7 +137,7 @@ router.get('/:id', requirePermission('leads', 'chats'), async (req, res, next) =
   try {
     // findFirst + instance filter: a conversation of another number is "not found" for this view.
     const lead = await prisma.lead.findFirst({
-      where: { id: req.params.id, ...instanceWhere(req.query.instanceId) },
+      where: { id: req.params.id, ...scopedInstanceWhere(req, req.query.instanceId) },
       include: {
         messages: { orderBy: { createdAt: 'asc' } },
         assignedTo: { select: { id: true, email: true, role: true } },

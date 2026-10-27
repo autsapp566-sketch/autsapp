@@ -13,24 +13,31 @@ function pct(part, total) {
   return Math.round((part / total) * 1000) / 10;
 }
 
-export async function getAnalyticsOverview() {
+/**
+ * @param {{ instanceIds?: string[] | null }} [scope] allowed WhatsApp numbers (null/undefined = all)
+ */
+export async function getAnalyticsOverview({ instanceIds = null } = {}) {
+  const restricted = Array.isArray(instanceIds);
+  const leadScope = restricted ? { instanceId: { in: instanceIds } } : {};
+  const messageScope = restricted ? { instanceId: { in: instanceIds } } : {};
   const [totalMessages, voiceMessages, orders, totalLeads, sentimentCounts, recentMessages] =
     await Promise.all([
-      prisma.message.count(),
+      prisma.message.count({ where: messageScope }),
       prisma.message.count({
-        where: { sender: 'USER', content: { startsWith: '[رسالة صوتية]' } },
+        where: { ...messageScope, sender: 'USER', content: { startsWith: '[رسالة صوتية]' } },
       }),
       prisma.lead.count({
-        where: { status: { in: ['QUALIFIED', 'HANDED_OFF'] } },
+        where: { ...leadScope, status: { in: ['QUALIFIED', 'HANDED_OFF'] } },
       }),
-      prisma.lead.count(),
+      prisma.lead.count({ where: leadScope }),
       Promise.all([
-        prisma.lead.count({ where: { status: 'QUALIFIED' } }),
-        prisma.lead.count({ where: { status: { in: ['NEW', 'QUALIFYING'] } } }),
-        prisma.lead.count({ where: { status: { in: ['REJECTED', 'HANDED_OFF'] } } }),
+        prisma.lead.count({ where: { ...leadScope, status: 'QUALIFIED' } }),
+        prisma.lead.count({ where: { ...leadScope, status: { in: ['NEW', 'QUALIFYING'] } } }),
+        prisma.lead.count({ where: { ...leadScope, status: { in: ['REJECTED', 'HANDED_OFF'] } } }),
       ]),
       prisma.message.findMany({
         where: {
+          ...messageScope,
           createdAt: {
             gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
           },
@@ -68,7 +75,7 @@ export async function getAnalyticsOverview() {
   }
 
   const needsIntervention = await prisma.lead.count({
-    where: { status: { in: ['HANDED_OFF', 'REJECTED'] } },
+    where: { ...leadScope, status: { in: ['HANDED_OFF', 'REJECTED'] } },
   });
 
   return {
