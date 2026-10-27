@@ -29,6 +29,15 @@ const stateLabels = {
   unknown: 'غير معروف',
 };
 
+/** Session names are internal: generated automatically (a-z0-9-, 3–40 chars). */
+function generateInstanceName() {
+  const rand =
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID().replace(/-/g, '').slice(0, 10)
+      : Math.random().toString(36).slice(2, 12);
+  return `wa-${rand}`;
+}
+
 function isConnectedState(state) {
   const s = (state ?? '').toLowerCase();
   return s === 'open' || s === 'authorized' || s === 'connected';
@@ -66,7 +75,7 @@ function QrPanel({ activeQr, onRefresh, onClose }) {
           </button>
         </div>
 
-        {activeQr.message && !activeQr.base64 && !activeQr.pairingCode ? (
+        {activeQr.message && !activeQr.base64 ? (
           <p className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
             {activeQr.message}
           </p>
@@ -88,15 +97,6 @@ function QrPanel({ activeQr, onRefresh, onClose }) {
             </div>
           )}
         </div>
-
-        {activeQr.pairingCode ? (
-          <div className="mt-4 rounded-xl border border-sky-500/30 bg-sky-500/10 p-3 text-center">
-            <p className="text-xs text-sky-200">أو اربط بالكود: الأجهزة المرتبطة ← الربط برقم الهاتف</p>
-            <p className="mt-1 font-mono text-2xl font-bold tracking-widest text-white" dir="ltr">
-              {activeQr.pairingCode}
-            </p>
-          </div>
-        ) : null}
 
         <p className="mt-3 text-center text-xs text-emerald-400/90">يتم تحديث QR تلقائياً كل 20 ثانية…</p>
 
@@ -152,9 +152,7 @@ export default function WhatsAppLinkPage() {
   const [integration, setIntegration] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [instanceName, setInstanceName] = useState('');
   const [label, setLabel] = useState('');
-  const [number, setNumber] = useState('');
   const [creating, setCreating] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [activeQr, setActiveQr] = useState(null);
@@ -224,7 +222,6 @@ export default function WhatsAppLinkPage() {
       instanceId,
       instanceName: row?.instanceName ?? payload?.instanceName,
       base64: qr.base64 ?? payload?.qrcode ?? null,
-      pairingCode: qr.pairingCode ?? payload?.pairingCode ?? null,
       message: qr.message ?? payload?.message ?? null,
     });
     setPollingId(instanceId);
@@ -238,9 +235,8 @@ export default function WhatsAppLinkPage() {
     setSuccessMsg('');
     try {
       const data = await createWhatsAppInstance({
-        instanceName: instanceName.trim().toLowerCase(),
+        instanceName: generateInstanceName(),
         label: label.trim() || undefined,
-        number: number.trim() || undefined,
       });
       applyQrResponse(data.instance.id, data.instance, data);
       if (data.connected) {
@@ -250,9 +246,7 @@ export default function WhatsAppLinkPage() {
       } else if (data.webhookError) {
         setSuccessMsg(`تم إنشاء الجلسة، لكن تعذر ضبط Webhook: ${data.webhookError}`);
       }
-      setInstanceName('');
       setLabel('');
-      setNumber('');
       setShowForm(false);
       await load();
     } catch (err) {
@@ -263,9 +257,7 @@ export default function WhatsAppLinkPage() {
   }
 
   function openNewForm() {
-    setInstanceName('');
     setLabel('');
-    setNumber('');
     setError('');
     setSuccessMsg('');
     setShowForm(true);
@@ -317,8 +309,6 @@ export default function WhatsAppLinkPage() {
     }
   }
 
-  const nameValid = /^[a-z0-9_-]{3,40}$/.test(instanceName.trim().toLowerCase());
-
   return (
     <section className="space-y-6">
       <QrPanel
@@ -333,7 +323,7 @@ export default function WhatsAppLinkPage() {
       <div>
         <h2 className="text-xl font-bold text-white">ربط أرقام واتساب — Evolution API</h2>
         <p className="mt-2 text-sm text-slate-400">
-          كل رقم واتساب هو جلسة (instance) على خادم Evolution. اختر لها اسماً، ثم امسح QR. عنوان الخادم والمفتاح العام يُضبطان في{' '}
+          اضغط «إنشاء الجلسة»، ثم امسح رمز QR من واتساب ← الأجهزة المرتبطة. عنوان الخادم والمفتاح العام يُضبطان في{' '}
           <span className="font-mono text-xs text-slate-300">.env</span> (
           <Link to="/dashboard/settings" className="text-emerald-400 hover:underline">
             الإعدادات
@@ -375,22 +365,8 @@ export default function WhatsAppLinkPage() {
                 </button>
               ) : null}
             </div>
-            <div>
-              <label className="mb-1 block text-xs text-slate-400">اسم الجلسة (instanceName)</label>
-              <input
-                name="evo-instance-name"
-                value={instanceName}
-                onChange={(e) => setInstanceName(e.target.value)}
-                placeholder="shop-main"
-                dir="ltr"
-                required
-                autoComplete="off"
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
-              />
-              <p className="mt-1 text-[11px] text-slate-500">3–40 حرفاً: a-z و 0-9 و _ أو - (بدون فراغات). لا يتغير بعد الإنشاء.</p>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-slate-400">اسم ظاهر (اختياري)</label>
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-xs text-slate-400">اسم الرقم (اختياري)</label>
               <input
                 name="evo-label"
                 value={label}
@@ -401,25 +377,9 @@ export default function WhatsAppLinkPage() {
               />
             </div>
             <div className="md:col-span-2">
-              <label className="mb-1 block text-xs text-slate-400">
-                رقم الهاتف (اختياري — للربط بكود الاقتران بدل QR)
-              </label>
-              <input
-                name="evo-number"
-                value={number}
-                onChange={(e) => setNumber(e.target.value)}
-                placeholder="212612345678"
-                dir="ltr"
-                inputMode="numeric"
-                autoComplete="off"
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
-              />
-              <p className="mt-1 text-[11px] text-slate-500">بصيغة دولية بدون + أو أصفار (مثال: 212612345678).</p>
-            </div>
-            <div className="md:col-span-2">
               <button
                 type="submit"
-                disabled={creating || !nameValid}
+                disabled={creating}
                 className="w-full rounded-xl border border-emerald-500/40 bg-emerald-500/10 py-2.5 text-sm font-semibold text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-50"
               >
                 {creating ? 'جاري إنشاء الجلسة وجلب QR…' : '+ إنشاء الجلسة وعرض QR'}
@@ -449,7 +409,7 @@ export default function WhatsAppLinkPage() {
               📱
             </p>
             <p className="mt-3 text-sm font-medium text-slate-300">لا توجد جلسات واتساب بعد</p>
-            <p className="mt-1 text-xs text-slate-500">اختر اسماً للجلسة ثم امسح QR</p>
+            <p className="mt-1 text-xs text-slate-500">أنشئ جلسة ثم امسح QR</p>
           </div>
         ) : (
           instances.map((inst) => {
