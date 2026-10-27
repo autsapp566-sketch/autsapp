@@ -202,7 +202,7 @@ const SECTIONS = [
               <strong className="text-white">إعدادات الحساب</strong> ← أدخل مفتاح OpenAI واختر النموذج.
             </>,
             <>
-              <strong className="text-white">ربط أرقام واتساب</strong> ← اختار اسم للجلسة (instanceName) وامسح QR (Evolution API).
+              <strong className="text-white">ربط أرقام واتساب</strong> ← أنشئ جلسة وامسح QR (Evolution API).
             </>,
             <>
               <strong className="text-white">الكتالوج والأسئلة</strong> ← زيد المنتجات (بصورها وألوانها وأثمنتها) والأسئلة الشائعة.
@@ -375,12 +375,8 @@ const SECTIONS = [
         <H>ربط رقم</H>
         <OL
           items={[
-            <>
-              فـ الصفحة اختار <strong className="text-white">اسم الجلسة</strong> (<Code>instanceName</Code>: حروف إنجليزية صغيرة وأرقام و - أو _،
-              من 3 لـ 40) واسم ظاهر إلا بغيتي.
-            </>,
-            'اختيارياً: دخّل رقم الهاتف باش تربط بكود الاقتران (pairing code) بدل QR.',
-            'اضغط «إنشاء الجلسة وعرض QR» وامسح QR من واتساب ← الأجهزة المرتبطة. الحالة كتولي «متصل».',
+            'فـ الصفحة كتب اسم للرقم إلا بغيتي (اختياري)؛ اسم الجلسة التقني كيتصاوب بوحدو.',
+            'اضغط «إنشاء الجلسة وعرض QR» وامسح QR من واتساب ← الأجهزة المرتبطة. الحالة كتولي «متصل». الربط كيتم فقط عبر مسح QR.',
             'السيرفر كيضبط الـ webhook (/api/webhook/evolution) بوحدو (غير فـ الإنتاج، ماشي localhost).',
           ]}
         />
