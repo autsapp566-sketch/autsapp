@@ -20,6 +20,12 @@ import {
   setGreenWebhook,
   invalidateGreenStateCache,
 } from '../services/greenApi.js';
+import { prisma } from '../lib/prisma.js';
+import {
+  buildEvolutionWebhookUrl,
+  isEvolutionConfigured,
+  setInstanceWebhook,
+} from '../services/evolutionService.js';
 import {
   invalidateGreenApiConfigCache,
   resolveGreenApiConfigAsync,
@@ -122,6 +128,43 @@ router.post('/handoff-forward/test', async (_req, res, next) => {
   try {
     res.json(await sendHandoffForwardTest());
   } catch (err) {
+    next(err);
+  }
+});
+
+/** Re-register this API's webhook on every Evolution instance (e.g. after the API URL changed). */
+router.post('/evolution/webhook/sync', async (req, res, next) => {
+  try {
+    if (!isEvolutionConfigured()) {
+      return res.status(400).json({ error: 'EVOLUTION_API_URL و EVOLUTION_API_KEY غير مضبوطين' });
+    }
+    const base = requestBaseUrl(req);
+    if (!base || isLocalHost(base)) {
+      return res.status(400).json({
+        error: 'لا يمكن ضبط Webhook من localhost — نفّذ هذا الإجراء من الواجهة المنشورة على Vercel',
+      });
+    }
+    const webhookUrl = buildEvolutionWebhookUrl(base);
+    const rows = await prisma.whatsAppInstance.findMany({ where: { provider: { not: 'green' } } });
+    const results = [];
+    for (const row of rows) {
+      try {
+        await setInstanceWebhook(row.instanceName, webhookUrl);
+        results.push({ instanceName: row.instanceName, ok: true });
+      } catch (err) {
+        results.push({ instanceName: row.instanceName, ok: false, error: err.message });
+      }
+    }
+    const okCount = results.filter((r) => r.ok).length;
+    return res.json({
+      ok: results.every((r) => r.ok),
+      results,
+      message: rows.length
+        ? `تم ضبط Webhook على ${okCount} من ${rows.length} رقم`
+        : 'لا توجد أرقام Evolution مربوطة بعد',
+    });
+  } catch (err) {
+    err.expose = true;
     next(err);
   }
 });

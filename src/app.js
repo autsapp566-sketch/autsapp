@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { corsOptions } from './lib/cors.js';
 import authRoutes from './routes/auth.js';
 import greenApiWebhookRoutes from './routes/greenApiWebhook.js';
+import evolutionWebhookRoutes from './routes/evolutionWebhook.js';
 import leadsRoutes from './routes/leads.js';
 import whatsappInstancesRoutes from './routes/whatsappInstances.js';
 import aiSettingsRoutes from './routes/aiSettings.js';
@@ -58,6 +59,7 @@ export function createApp() {
 
   app.use('/api/auth', authRoutes);
   app.use('/api/webhook/green-api', greenApiWebhookRoutes);
+  app.use('/api/webhook/evolution', evolutionWebhookRoutes);
   app.use('/api/leads', leadsRoutes);
   app.use('/api/whatsapp-instances', whatsappInstancesRoutes);
   app.use('/api/settings/ai', aiSettingsRoutes);
