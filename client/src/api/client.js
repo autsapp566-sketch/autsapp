@@ -174,6 +174,10 @@ export function rebootWhatsAppInstance(id) {
   return apiFetch(`/api/whatsapp-instances/${id}/reboot`, { method: 'POST' });
 }
 
+export function fetchEvolutionWebhookLog() {
+  return apiFetch('/api/whatsapp-instances/webhook-log');
+}
+
 export function syncWhatsAppInstanceWebhook(id) {
   return apiFetch(`/api/whatsapp-instances/${id}/webhook`, { method: 'POST' });
 }
