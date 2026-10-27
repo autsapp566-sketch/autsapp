@@ -116,7 +116,7 @@ function Table({ head, rows }) {
   );
 }
 
-/** Boxes connected by arrows, e.g. WhatsApp → Green API → Server. */
+/** Boxes connected by arrows, e.g. WhatsApp → Evolution API → Server. */
 function Diagram({ nodes }) {
   return (
     <div className="mb-4 flex flex-wrap items-stretch gap-2 text-center" dir="rtl">
@@ -143,7 +143,7 @@ const SECTIONS = [
     id: 'overview',
     icon: '🧭',
     title: 'نظرة عامة على النظام',
-    keywords: 'مقدمة ما هو النظام معمارية architecture واتساب green api openai',
+    keywords: 'مقدمة ما هو النظام معمارية architecture واتساب evolution api openai',
     body: (
       <>
         <P>
@@ -155,7 +155,7 @@ const SECTIONS = [
         <Diagram
           nodes={[
             { icon: '📱', title: 'واتساب', text: 'الزبون' },
-            { icon: '🟢', title: 'Green API', text: 'جسر واتساب' },
+            { icon: '🟢', title: 'Evolution API', text: 'جسر واتساب (مستضاف عندك)' },
             { icon: '⚙️', title: 'السيرفر (API)', text: 'Express على Vercel' },
             { icon: '🧠', title: 'OpenAI', text: 'الفهم والرد' },
             { icon: '🗄️', title: 'قاعدة البيانات', text: 'PostgreSQL / Supabase' },
@@ -165,8 +165,8 @@ const SECTIONS = [
         <UL
           items={[
             <>
-              <strong className="text-white">Green API</strong>: كيربط رقم واتساب ديالك بالنظام؛ كيوصّل الرسائل للسيرفر عبر webhook وكيبعت
-              الردود للزبون.
+              <strong className="text-white">Evolution API</strong>: خادم واتساب مستضاف عندك؛ كل رقم عبارة عن «جلسة» (instance). كيوصّل الرسائل
+              للسيرفر عبر webhook وكيبعت الردود للزبون.
             </>,
             <>
               <strong className="text-white">السيرفر</strong>: كيستقبل الرسائل، كيحفظها، كيستعمل OpenAI، وكيبعت الرد.
@@ -202,7 +202,7 @@ const SECTIONS = [
               <strong className="text-white">إعدادات الحساب</strong> ← أدخل مفتاح OpenAI واختر النموذج.
             </>,
             <>
-              <strong className="text-white">ربط أرقام واتساب</strong> ← أدخل Instance ID وAPI Token ديال Green API وامسح QR.
+              <strong className="text-white">ربط أرقام واتساب</strong> ← اختار اسم للجلسة (instanceName) وامسح QR (Evolution API).
             </>,
             <>
               <strong className="text-white">الكتالوج والأسئلة</strong> ← زيد المنتجات (بصورها وألوانها وأثمنتها) والأسئلة الشائعة.
@@ -304,7 +304,7 @@ const SECTIONS = [
           items={[
             'متاح غير فـ حالة التحكم البشري. اضغط الميكرو، هدر، ثم «إرسال».',
             'التسجيل كيتحول لـ MP3 فـ المتصفح وكيتبعت للزبون عبر واتساب.',
-            'كيبان عند الزبون كملف صوتي (ماشي PTT)، وكيتسجل فـ المحادثة كمشغّل صوت.',
+            'كيبان عند الزبون كنوت صوتي (PTT) عبر Evolution، وكيتسجل فـ المحادثة كمشغّل صوت.',
           ]}
         />
         <Note kind="info">
@@ -361,33 +361,45 @@ const SECTIONS = [
   {
     id: 'whatsapp',
     icon: '📱',
-    title: 'ربط أرقام واتساب (Green API)',
+    title: 'ربط أرقام واتساب (Evolution API)',
     badge: 'للمدير',
-    keywords: 'green api instance token qr webhook ربط رقم أكثر من رقم 466 quota',
+    keywords: 'evolution api instance qr webhook ربط رقم أكثر من رقم pairing code جلسة',
     body: (
       <>
+        <H>الإعداد الأولي (مرة وحدة)</H>
+        <P>
+          عنوان خادم Evolution والمفتاح العام كيتحطو فـ متغيرات البيئة ديال السيرفر: <Code>EVOLUTION_API_URL</Code> و{' '}
+          <Code>EVOLUTION_API_KEY</Code> (فـ <Code>.env</Code> محلياً وفـ Vercel للإنتاج). فـ صفحة «ربط أرقام واتساب» كيبان لك مؤشر باللون
+          الأخضر إلا كان الخادم متصل والمفتاح صحيح.
+        </P>
         <H>ربط رقم</H>
         <OL
           items={[
             <>
-              من لوحة <Code>console.green-api.com</Code> خذ <strong className="text-white">Instance ID</strong> و
-              <strong className="text-white"> API Token</strong> ديال الرقم.
+              فـ الصفحة اختار <strong className="text-white">اسم الجلسة</strong> (<Code>instanceName</Code>: حروف إنجليزية صغيرة وأرقام و - أو _،
+              من 3 لـ 40) واسم ظاهر إلا بغيتي.
             </>,
-            'فـ الصفحة أدخلهم (والاسم و API URL إلا بغيتي) واضغط «ربط».',
-            'امسح QR من واتساب ← الأجهزة المرتبطة. الحالة كتولي «متصل».',
-            'السيرفر كيضبط ديال الـ webhook بوحدو (غير فـ الإنتاج، ماشي localhost).',
+            'اختيارياً: دخّل رقم الهاتف باش تربط بكود الاقتران (pairing code) بدل QR.',
+            'اضغط «إنشاء الجلسة وعرض QR» وامسح QR من واتساب ← الأجهزة المرتبطة. الحالة كتولي «متصل».',
+            'السيرفر كيضبط الـ webhook (/api/webhook/evolution) بوحدو (غير فـ الإنتاج، ماشي localhost).',
           ]}
         />
         <H>ربط أكثر من رقم</H>
         <P>
-          بعد أول رقم كيبان زر «➕ ربط رقم واتساب آخر». كل رقم خاصو Instance ID وToken ديالو. البوت كيرد دائماً{' '}
+          بعد أول رقم كيبان زر «➕ ربط رقم واتساب آخر». كل رقم هو جلسة بسميتها. البوت كيرد دائماً{' '}
           <strong className="text-white">بنفس الرقم اللي كتب ليه الزبون</strong>. واحد منهم كيكون «افتراضي» (للرسائل اللي ما عندهاش رقم محدد).
         </P>
         <H>إدارة الأرقام</H>
-        <UL items={['عرض QR جديد، إعادة تشغيل (Reboot)، تسجيل الخروج، تعيين كافتراضي، أو حذف.', 'بطاقة كل رقم كتبين حالتو (متصل / غير مصرّح — امسح QR / جاري التشغيل / غير متصل).']} />
+        <UL
+          items={[
+            'عرض QR جديد، Restart، Webhook (إعادة ضبط)، Logout، تعيين كافتراضي، أو حذف (كيمسح الجلسة من Evolution أيضاً).',
+            'بطاقة كل رقم كتبين حالتو (متصل / جاري الربط — امسح QR / غير متصل / الجلسة غير موجودة / Evolution غير متاح).',
+            'الأرقام القديمة ديال Green API كتبقى خدامة حتى تربط رقم Evolution (كيولي هو الافتراضي أوتوماتيكياً). عليها علامة «Green API (قديم)».',
+          ]}
+        />
         <Note kind="warn">
-          خطة <strong>Developer</strong> المجانية ديال Green API كتسمح بالمراسلة مع <strong>3 أرقام فقط</strong>. بعدها كيرجع الخطأ 466 والردود ما
-          كتوصلش. الحل: ترقية الخطة لـ Business. هاد الخطأ كيبان فـ إشعارات الأدمين فقط، ماشي عند الزبون.
+          إلا كان Evolution غير متاح (Timeout أو 500) السيرفر كيرجع رسالة واضحة، والردود ما كتوصلش حتى يرجع الخادم. تفقد حالة الاتصال فـ «إعدادات
+          الحساب» ← Evolution API.
         </Note>
       </>
     ),
@@ -457,9 +469,12 @@ const SECTIONS = [
           وملخص. كتكتب الرقم بصيغة دولية أو مغربية (<Code>06…</Code>)، وفيه زر «اختبار».
         </P>
         <H>
-          إعدادات Green API <Badge tone="admin">للمدير</Badge>
+          إعدادات Evolution API <Badge tone="admin">للمدير</Badge>
         </H>
-        <P>بيانات الرقم الافتراضي (Instance, Token, URL) وعنوان السيرفر العام (<Code>APP_PUBLIC_URL</Code>) اللي كيستعملو Green API للـ webhook.</P>
+        <P>
+          حالة الاتصال بخادم Evolution (العنوان، المفتاح مخفي جزئياً، الإصدار)، زر «اختبار الاتصال»، وزر «إعادة ضبط Webhook لكل الأرقام» (استعمله من
+          الواجهة المنشورة). العنوان والمفتاح كيتغيرو من <Code>EVOLUTION_API_URL</Code> و<Code>EVOLUTION_API_KEY</Code>.
+        </P>
         <H>
           الذكاء الاصطناعي والصوت <Badge tone="admin">للمدير</Badge>
         </H>
@@ -497,7 +512,7 @@ const SECTIONS = [
         <H>
           إشعارات النظام <Badge tone="admin">للمدير فقط</Badge>
         </H>
-        <P>أخطاء تقنية بحال: «لم يصل رد البوت للزبون» أو «حصة Green API مستنفدة» كتبان فـ شريط أصفر عند الأدمين فقط. ما كيتكتبوش أبداً فـ محادثة الزبون.</P>
+        <P>أخطاء تقنية بحال: «لم يصل رد البوت للزبون» أو «تعذر الإرسال عبر Evolution API» كتبان فـ شريط أصفر عند الأدمين فقط. ما كيتكتبوش أبداً فـ محادثة الزبون.</P>
       </>
     ),
   },
@@ -513,7 +528,7 @@ const SECTIONS = [
           steps={[
             {
               title: 'استقبال الـ webhook',
-              text: 'Green API كيبعت الرسالة لـ /api/webhook/green-api. كيقبل: نص، رسالة صوتية، رسالة معدّلة، ورسالة فيها رابط/معاينة إعلان. المجموعات كتتجاهل.',
+              text: 'Evolution API كيبعت الحدث MESSAGES_UPSERT لـ /api/webhook/evolution (محمي بـ token). كيقبل: نص، رسالة صوتية، رسالة معدّلة، ورسالة فيها رابط/معاينة إعلان. المجموعات كتتجاهل. حدث CONNECTION_UPDATE كيحدّث حالة الاتصال.',
             },
             {
               title: 'تحديد الرقم والزبون',
@@ -545,7 +560,7 @@ const SECTIONS = [
             },
             {
               title: 'إرسال الرد',
-              text: 'الرد كيتبعت بـ Green API من نفس الرقم. روابط الصور فـ الرد كتتبعت كصور حقيقية، ورد صوتي (TTS) إلا كان مفعّل. إلا فشل الإرسال كيتسجل تنبيه للأدمين.',
+              text: 'الرد كيتبعت عبر Evolution API من نفس الرقم (الجلسة). روابط الصور فـ الرد كتتبعت كصور حقيقية، ورد صوتي (TTS) إلا كان مفعّل. إلا فشل الإرسال كيتسجل تنبيه للأدمين.',
             },
             {
               title: 'عند التسليم',
@@ -554,7 +569,7 @@ const SECTIONS = [
           ]}
         />
         <Note kind="info">
-          السيرفر كيرجع دائماً <Code>200</Code> لـ Green API حتى فـ حالة خطأ، باش ما يعاودش يبعت نفس الرسالة كل دقيقة ويتكرر الرد.
+          السيرفر كيرجع دائماً <Code>200</Code> لـ Evolution API حتى فـ حالة خطأ، باش ما يعاودش يبعت نفس الرسالة كل دقيقة ويتكرر الرد.
         </Note>
 
         <H>الدرجة والحالة</H>
@@ -634,8 +649,8 @@ const SECTIONS = [
             ['Lead', 'العميل: الهاتف، الاسم، الحالة، الدرجة، الملخص، «aiPaused»، الوكيل المسند.'],
             ['Message', 'كل رسائل المحادثات (USER / BOT / AGENT).'],
             ['KnowledgeItem', 'المنتجات والأسئلة الشائعة.'],
-            ['AiSettings', 'مفتاح OpenAI، النموذج، البرومبتات، إعدادات الصوت وGreen API.'],
-            ['WhatsAppInstance', 'أرقام واتساب المربوطة (Instance, Token, الافتراضي).'],
+            ['AiSettings', 'مفتاح OpenAI، النموذج، البرومبتات، إعدادات الصوت.'],
+            ['WhatsAppInstance', 'أرقام واتساب المربوطة (اسم الجلسة، الهاتف، الافتراضي، المزوّد).'],
             ['UploadedImage *', 'صور المنتجات والنوت الصوتي (مخزنة فـ DB لأن Vercel ما فيه تخزين دائم).'],
             ['AppSetting *', 'إعدادات JSON: أرقام التحويل، صلاحيات الوكلاء…'],
             ['AdminAlert *', 'تنبيهات النظام الخاصة بالأدمين.'],
@@ -704,7 +719,8 @@ const SECTIONS = [
             [
               'الرد كيبان فـ الداشبورد ولكن ما كيوصلش لواتساب',
               <>
-                غالباً الخطأ <Code>466</Code>: حصة Green API (خطة Developer = 3 أرقام). رقّي الخطة. شوف إشعارات الأدمين.
+                غالباً الجلسة غير متصلة أو Evolution API متوقف. شوف حالة الرقم فـ «ربط أرقام واتساب» (امسح QR من جديد إلا كان «غير متصل») وحالة
+                الاتصال فـ الإعدادات، وإشعارات الأدمين.
               </>,
             ],
             [
@@ -725,7 +741,7 @@ const SECTIONS = [
             ],
             [
               'ظهر «Not Found» وأنا كنربط رقم',
-              'Instance ID غالط (أو عمّره المتصفح بإيميل). تأكد من Instance ID وToken من Green API.',
+              'اسم الجلسة غير موجود فـ Evolution (مثلاً تحذفات من الخادم). احذف الرقم من اللوحة وأعد ربطه.',
             ],
             [
               'رسالة معدّلة من الزبون',
@@ -748,9 +764,9 @@ const SECTIONS = [
     body: (
       <UL
         items={[
-          'الرد الصوتي من الداشبورد كيوصل كملف صوتي (MP3) ماشي رسالة PTT.',
+          'الرد الصوتي من الداشبورد كيتسجل MP3 فـ المتصفح وكيتبعت كنوت صوتي عبر Evolution؛ إلا فشل التحويل كيوصل كملف صوتي.',
           'على Vercel ما كاينش Socket.IO: التحديث كيتم بالاستعلام الدوري كل بضع ثوان.',
-          'خطة Green API المجانية: 3 أرقام مراسلة فقط.',
+          'Evolution API كيعتمد على واتساب غير الرسمي (Baileys): استعمل أرقام مخصصة وتجنب الإرسال الجماعي باش ما يتحظرش الرقم.',
           'قراءة الإعلانات المغلقة بتسجيل الدخول محدودة (الصورة المصغّرة هي البديل).',
           'تقييم «الانطباع» فـ التحليلات مبني على حالة العميل ماشي تحليل نصي للمشاعر.',
         ]}

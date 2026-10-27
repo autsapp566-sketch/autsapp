@@ -174,6 +174,10 @@ export function rebootWhatsAppInstance(id) {
   return apiFetch(`/api/whatsapp-instances/${id}/reboot`, { method: 'POST' });
 }
 
+export function syncWhatsAppInstanceWebhook(id) {
+  return apiFetch(`/api/whatsapp-instances/${id}/webhook`, { method: 'POST' });
+}
+
 export function createWhatsAppInstance(body) {
   return apiFetch('/api/whatsapp-instances', {
     method: 'POST',
@@ -208,12 +212,9 @@ export function saveSettings(body) {
   });
 }
 
-export function fetchGreenWebhookStatus() {
-  return apiFetch('/api/settings/green-webhook');
-}
-
-export function syncGreenWebhook() {
-  return apiFetch('/api/settings/green-webhook/sync', { method: 'POST' });
+/** Re-register this API's webhook on every Evolution instance. */
+export function syncEvolutionWebhooks() {
+  return apiFetch('/api/settings/evolution/webhook/sync', { method: 'POST' });
 }
 
 export function fetchAiVoiceSettings() {

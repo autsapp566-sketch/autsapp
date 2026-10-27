@@ -21,5 +21,7 @@ export const env = {
   greenApiInstanceId: process.env.GREEN_API_INSTANCE_ID?.trim() || '',
   greenApiToken: process.env.GREEN_API_TOKEN?.trim() || '',
   greenApiUrl: process.env.GREEN_API_URL?.trim() || '',
+  evolutionApiUrl: (process.env.EVOLUTION_API_URL?.trim() || '').replace(/\/+$/, ''),
+  evolutionApiKey: process.env.EVOLUTION_API_KEY?.trim() || '',
   appPublicUrl: process.env.APP_PUBLIC_URL?.trim().replace(/\/$/, '') || '',
 };

@@ -11,43 +11,41 @@ import {
   logoutWhatsAppInstance,
   rebootWhatsAppInstance,
   setDefaultWhatsAppInstance,
+  syncWhatsAppInstanceWebhook,
 } from '../../api/client.js';
 
 const stateLabels = {
-  authorized: 'متصل',
   open: 'متصل',
+  authorized: 'متصل',
   connected: 'متصل',
+  connecting: 'جاري الربط — امسح QR',
+  close: 'غير متصل — امسح QR',
   notauthorized: 'غير مصرّح — امسح QR',
-  notAuthorized: 'غير مصرّح — امسح QR',
-  close: 'غير متصل',
-  connecting: 'جاري الربط…',
   starting: 'جاري التشغيل…',
   blocked: 'محظور',
-  sleepmode: 'وضع السكون',
-  unreachable: 'Green API غير متاح',
+  missing: 'الجلسة غير موجودة في Evolution',
+  unreachable: 'Evolution API غير متاح',
   notconfigured: 'غير مضبوط',
   unknown: 'غير معروف',
 };
 
+function isConnectedState(state) {
+  const s = (state ?? '').toLowerCase();
+  return s === 'open' || s === 'authorized' || s === 'connected';
+}
+
 function StateBadge({ state }) {
   const normalized = (state ?? 'unknown').toLowerCase();
-  const isConnected =
-    normalized === 'authorized' || normalized === 'open' || normalized === 'connected';
   return (
     <span
       className={[
         'rounded-full px-2 py-0.5 text-[10px] font-semibold',
-        isConnected ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-700 text-slate-300',
+        isConnectedState(state) ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-700 text-slate-300',
       ].join(' ')}
     >
-      {stateLabels[normalized] ?? stateLabels[state] ?? state}
+      {stateLabels[normalized] ?? state}
     </span>
   );
-}
-
-function isConnectedState(state) {
-  const s = (state ?? '').toLowerCase();
-  return s === 'authorized' || s === 'open' || s === 'connected';
 }
 
 function QrPanel({ activeQr, onRefresh, onClose }) {
@@ -58,9 +56,9 @@ function QrPanel({ activeQr, onRefresh, onClose }) {
       <div className="max-h-[95vh] w-full max-w-md overflow-y-auto rounded-2xl border border-emerald-500/30 bg-slate-900 p-6 shadow-2xl">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-lg font-bold text-white">ربط واتساب — Green API</h3>
+            <h3 className="text-lg font-bold text-white">ربط واتساب — Evolution API</h3>
             <p className="mt-1 text-xs text-slate-400" dir="ltr">
-              {activeQr.greenInstanceId ?? activeQr.instanceName}
+              {activeQr.instanceName}
             </p>
           </div>
           <button type="button" onClick={onClose} className="text-slate-400 hover:text-white">
@@ -68,8 +66,8 @@ function QrPanel({ activeQr, onRefresh, onClose }) {
           </button>
         </div>
 
-        {activeQr.message && !activeQr.base64 ? (
-          <p className="mt-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+        {activeQr.message && !activeQr.base64 && !activeQr.pairingCode ? (
+          <p className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
             {activeQr.message}
           </p>
         ) : null}
@@ -85,11 +83,20 @@ function QrPanel({ activeQr, onRefresh, onClose }) {
             <img src={activeQr.base64} alt="WhatsApp QR Code" className="max-h-64 w-full object-contain" />
           ) : (
             <div className="text-center text-sm text-slate-600">
-              <p className="font-medium">QR غير جاهز</p>
-              <p className="mt-1 text-xs">تحقق من Instance ID و API Token في Green API</p>
+              <p className="font-medium">QR غير جاهز بعد</p>
+              <p className="mt-1 text-xs">اضغط «تحديث QR» بعد ثوانٍ</p>
             </div>
           )}
         </div>
+
+        {activeQr.pairingCode ? (
+          <div className="mt-4 rounded-xl border border-sky-500/30 bg-sky-500/10 p-3 text-center">
+            <p className="text-xs text-sky-200">أو اربط بالكود: الأجهزة المرتبطة ← الربط برقم الهاتف</p>
+            <p className="mt-1 font-mono text-2xl font-bold tracking-widest text-white" dir="ltr">
+              {activeQr.pairingCode}
+            </p>
+          </div>
+        ) : null}
 
         <p className="mt-3 text-center text-xs text-emerald-400/90">يتم تحديث QR تلقائياً كل 20 ثانية…</p>
 
@@ -114,6 +121,29 @@ function QrPanel({ activeQr, onRefresh, onClose }) {
   );
 }
 
+function IntegrationStatus({ integration }) {
+  if (!integration) return null;
+  const good = integration.configured && integration.reachable && integration.keyValid;
+  return (
+    <div
+      className={[
+        'rounded-xl border px-4 py-3 text-sm',
+        good ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100' : 'border-amber-500/40 bg-amber-500/10 text-amber-100',
+      ].join(' ')}
+    >
+      <p className="font-semibold">
+        {good ? '✓ Evolution API متصل' : '⚠ Evolution API غير جاهز'}
+        {integration.version ? <span className="ms-2 text-xs opacity-80">v{integration.version}</span> : null}
+      </p>
+      <p className="mt-1 text-xs opacity-90" dir="ltr">
+        {integration.baseUrl || 'EVOLUTION_API_URL غير مضبوط'}
+        {integration.apiKeyMasked ? ` · key ${integration.apiKeyMasked}` : ''}
+      </p>
+      {!good && integration.error ? <p className="mt-1 text-xs">{integration.error}</p> : null}
+    </div>
+  );
+}
+
 export default function WhatsAppLinkPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
@@ -122,10 +152,9 @@ export default function WhatsAppLinkPage() {
   const [integration, setIntegration] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [instanceName, setInstanceName] = useState('');
   const [label, setLabel] = useState('');
-  const [greenInstanceId, setGreenInstanceId] = useState('');
-  const [greenApiToken, setGreenApiToken] = useState('');
-  const [greenApiUrl, setGreenApiUrl] = useState('');
+  const [number, setNumber] = useState('');
   const [creating, setCreating] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [activeQr, setActiveQr] = useState(null);
@@ -151,187 +180,136 @@ export default function WhatsAppLinkPage() {
   }, [isAdmin]);
 
   useEffect(() => {
-    if (!integration) {
-      return;
-    }
-    // Only the very first number is pre-filled from the saved/.env settings.
-    if (instances.length === 0) {
-      setGreenInstanceId((v) => v || integration.instanceId || '');
-    }
-    setGreenApiUrl((v) => v || integration.baseUrl || '');
-  }, [integration, instances.length]);
-
-  useEffect(() => {
     load();
   }, [load]);
 
+  // While the QR is open, watch for the scan.
   useEffect(() => {
-    if (!pollingId) {
-      return undefined;
-    }
-
+    if (!pollingId) return undefined;
     const interval = setInterval(async () => {
       try {
         const status = await fetchWhatsAppInstanceStatus(pollingId);
         if (isConnectedState(status.connectionState)) {
           setPollingId(null);
           setActiveQr(null);
+          setSuccessMsg('✓ تم ربط الرقم بنجاح');
           load();
         }
       } catch {
         /* ignore */
       }
     }, 3000);
-
     return () => clearInterval(interval);
   }, [pollingId, load]);
 
   useEffect(() => {
-    if (!activeQr?.instanceId || !isAdmin) {
-      return undefined;
-    }
-
+    if (!activeQr?.instanceId || !isAdmin) return undefined;
     const refreshInterval = setInterval(() => {
       refreshQr(activeQr.instanceId, { silent: true });
     }, 20000);
-
     return () => clearInterval(refreshInterval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeQr?.instanceId, isAdmin]);
 
   function applyQrResponse(instanceId, row, payload) {
     if (payload?.connected) {
       setActiveQr(null);
       setPollingId(null);
-      setSuccessMsg(
-        payload?.message ?? 'واتساب متصل — لا حاجة لـ QR.'
-      );
+      setSuccessMsg(payload?.message ?? 'واتساب متصل — لا حاجة لـ QR.');
       return;
     }
-
-    const base64 = payload?.qr?.base64 ?? payload?.qrcode ?? payload?.base64;
-    const message = payload?.qr?.message ?? payload?.message;
-
-    if (!base64 && message) {
-      setActiveQr({
-        instanceId,
-        instanceName: row?.instanceName ?? payload?.instanceName,
-        greenInstanceId: row?.greenInstanceId ?? payload?.greenInstanceId,
-        base64: null,
-        message,
-      });
-      setPollingId(null);
-      return;
-    }
-
+    const qr = payload?.qr ?? {};
     setSuccessMsg('');
     setActiveQr({
       instanceId,
       instanceName: row?.instanceName ?? payload?.instanceName,
-      greenInstanceId: row?.greenInstanceId ?? payload?.greenInstanceId,
-      base64,
-      message: message ?? null,
+      base64: qr.base64 ?? payload?.qrcode ?? null,
+      pairingCode: qr.pairingCode ?? payload?.pairingCode ?? null,
+      message: qr.message ?? payload?.message ?? null,
     });
     setPollingId(instanceId);
   }
 
   async function handleCreate(e) {
     e?.preventDefault?.();
-    if (!isAdmin) {
-      return;
-    }
-    if (instances.length > 0 && (!greenInstanceId.trim() || !greenApiToken.trim())) {
-      setError('أدخل Instance ID و API Token الخاصين بالرقم الجديد');
-      return;
-    }
+    if (!isAdmin) return;
     setCreating(true);
     setError('');
     setSuccessMsg('');
     try {
       const data = await createWhatsAppInstance({
+        instanceName: instanceName.trim().toLowerCase(),
         label: label.trim() || undefined,
-        greenInstanceId: greenInstanceId.trim() || undefined,
-        greenApiToken: greenApiToken.trim() || undefined,
-        greenApiUrl: greenApiUrl.trim() || undefined,
+        number: number.trim() || undefined,
       });
       applyQrResponse(data.instance.id, data.instance, data);
-      if (data.webhookSynced) {
-        setSuccessMsg('تم حفظ الرقم وضبط Webhook تلقائياً — قد يعيد Green API تشغيل الحساب لدقائق قليلة.');
+      if (data.connected) {
+        // message already set by applyQrResponse
+      } else if (data.webhookSynced) {
+        setSuccessMsg('تم إنشاء الجلسة وضبط Webhook تلقائياً — امسح QR لإكمال الربط.');
       } else if (data.webhookError) {
-        setSuccessMsg(`تم حفظ الرقم، لكن تعذر ضبط Webhook تلقائياً: ${data.webhookError}`);
+        setSuccessMsg(`تم إنشاء الجلسة، لكن تعذر ضبط Webhook: ${data.webhookError}`);
       }
+      setInstanceName('');
       setLabel('');
-      setGreenInstanceId('');
-      setGreenApiToken('');
+      setNumber('');
       setShowForm(false);
       await load();
     } catch (err) {
-      setError(err.message ?? 'تعذر إنشاء الربط — تحقق من Green API');
+      setError(err.message ?? 'تعذر إنشاء الجلسة — تحقق من Evolution API');
     } finally {
       setCreating(false);
     }
   }
 
   function openNewForm() {
-    // A new number needs its own Instance ID + Token: start from an empty form.
-    setGreenInstanceId('');
-    setGreenApiToken('');
+    setInstanceName('');
     setLabel('');
+    setNumber('');
     setError('');
     setSuccessMsg('');
     setShowForm(true);
   }
 
   async function refreshQr(instanceId, opts = {}) {
-    if (!opts.silent) {
-      setError('');
-    }
+    if (!opts.silent) setError('');
     try {
       const data = await fetchWhatsAppConnectQr(instanceId);
       const inst = instances.find((i) => i.id === instanceId);
       applyQrResponse(instanceId, inst, data);
     } catch (err) {
-      if (!opts.silent) {
-        setError(err.message ?? 'تعذر جلب QR');
-      }
+      if (!opts.silent) setError(err.message ?? 'تعذر جلب QR');
     }
   }
 
-  async function handleLogout(id) {
+  async function runAction(id, fn, okMessage) {
     setActionId(id);
     setError('');
     try {
-      await logoutWhatsAppInstance(id);
+      await fn(id);
+      if (okMessage) setSuccessMsg(okMessage);
       await load();
     } catch (err) {
-      setError(err.message ?? 'تعذر تسجيل الخروج');
+      setError(err.message ?? 'تعذر تنفيذ العملية');
     } finally {
       setActionId(null);
     }
   }
 
-  async function handleReboot(id) {
-    setActionId(id);
+  async function handleDelete(inst) {
+    const msg = inst.legacy
+      ? 'حذف هذا السجل القديم (Green API) من لوحة التحكم؟'
+      : `حذف الجلسة «${inst.label ?? inst.instanceName}» من Evolution API ومن لوحة التحكم؟ سيتوقف الرقم عن الرد.`;
+    if (!isAdmin || !window.confirm(msg)) return;
     setError('');
     try {
-      await rebootWhatsAppInstance(id);
-      await load();
-    } catch (err) {
-      setError(err.message ?? 'تعذر إعادة التشغيل');
-    } finally {
-      setActionId(null);
-    }
-  }
-
-  async function handleDelete(id) {
-    if (!isAdmin || !window.confirm('حذف هذا السجل من لوحة التحكم؟ (Instance يبقى في Green API)')) {
-      return;
-    }
-    setError('');
-    try {
-      await deleteWhatsAppInstance(id);
-      if (activeQr?.instanceId === id) {
+      const res = await deleteWhatsAppInstance(inst.id);
+      if (activeQr?.instanceId === inst.id) {
         setActiveQr(null);
         setPollingId(null);
+      }
+      if (res?.remoteError) {
+        setError(`تم الحذف من اللوحة لكن تعذر حذف الجلسة من Evolution: ${res.remoteError}`);
       }
       await load();
     } catch (err) {
@@ -339,17 +317,7 @@ export default function WhatsAppLinkPage() {
     }
   }
 
-  async function handleSetDefault(id) {
-    setError('');
-    try {
-      await setDefaultWhatsAppInstance(id);
-      await load();
-    } catch (err) {
-      setError(err.message ?? 'تعذر تعيين الافتراضي');
-    }
-  }
-
-  const webhookHint = integration?.webhookUrl ?? 'http://localhost:3000/api/webhook/green-api';
+  const nameValid = /^[a-z0-9_-]{3,40}$/.test(instanceName.trim().toLowerCase());
 
   return (
     <section className="space-y-6">
@@ -363,27 +331,18 @@ export default function WhatsAppLinkPage() {
       />
 
       <div>
-        <h2 className="text-xl font-bold text-white">ربط أرقام واتساب — Green API</h2>
+        <h2 className="text-xl font-bold text-white">ربط أرقام واتساب — Evolution API</h2>
         <p className="mt-2 text-sm text-slate-400">
-          أضف Instance ID و API Token من{' '}
-          <a
-            href="https://green-api.com"
-            target="_blank"
-            rel="noreferrer"
-            className="text-emerald-400 hover:underline"
-          >
-            green-api.com
-          </a>{' '}
-          — أو من{' '}
+          كل رقم واتساب هو جلسة (instance) على خادم Evolution. اختر لها اسماً، ثم امسح QR. عنوان الخادم والمفتاح العام يُضبطان في{' '}
+          <span className="font-mono text-xs text-slate-300">.env</span> (
           <Link to="/dashboard/settings" className="text-emerald-400 hover:underline">
             الإعدادات
           </Link>
-          . Webhook الوارد:{' '}
-          <span className="font-mono text-xs text-slate-300" dir="ltr">
-            {webhookHint}
-          </span>
+          ).
         </p>
       </div>
+
+      {isAdmin ? <IntegrationStatus integration={integration} /> : null}
 
       {error ? (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-300">{error}</div>
@@ -417,49 +376,23 @@ export default function WhatsAppLinkPage() {
               ) : null}
             </div>
             <div>
-              <label className="mb-1 block text-xs text-slate-400">Instance ID (idInstance)</label>
+              <label className="mb-1 block text-xs text-slate-400">اسم الجلسة (instanceName)</label>
               <input
-                name="green-instance-id"
-                value={greenInstanceId}
-                onChange={(e) => setGreenInstanceId(e.target.value)}
-                placeholder="710722775456"
+                name="evo-instance-name"
+                value={instanceName}
+                onChange={(e) => setInstanceName(e.target.value)}
+                placeholder="shop-main"
                 dir="ltr"
-                inputMode="numeric"
+                required
                 autoComplete="off"
                 className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
               />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-slate-400">
-                API Token (apiTokenInstance — ليس Admin token)
-              </label>
-              <input
-                name="green-api-token"
-                type="password"
-                value={greenApiToken}
-                onChange={(e) => setGreenApiToken(e.target.value)}
-                placeholder={instances.length === 0 ? 'فارغ = .env أو Token المحفوظ' : 'Token الرقم الجديد'}
-                dir="ltr"
-                autoComplete="new-password"
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-slate-400">Green API URL (اختياري)</label>
-              <input
-                name="green-api-url"
-                value={greenApiUrl}
-                onChange={(e) => setGreenApiUrl(e.target.value)}
-                placeholder="https://7107.api.greenapi.com"
-                dir="ltr"
-                autoComplete="off"
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
-              />
+              <p className="mt-1 text-[11px] text-slate-500">3–40 حرفاً: a-z و 0-9 و _ أو - (بدون فراغات). لا يتغير بعد الإنشاء.</p>
             </div>
             <div>
               <label className="mb-1 block text-xs text-slate-400">اسم ظاهر (اختياري)</label>
               <input
-                name="green-label"
+                name="evo-label"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
                 placeholder="خط الدعم 1"
@@ -468,12 +401,28 @@ export default function WhatsAppLinkPage() {
               />
             </div>
             <div className="md:col-span-2">
+              <label className="mb-1 block text-xs text-slate-400">
+                رقم الهاتف (اختياري — للربط بكود الاقتران بدل QR)
+              </label>
+              <input
+                name="evo-number"
+                value={number}
+                onChange={(e) => setNumber(e.target.value)}
+                placeholder="212612345678"
+                dir="ltr"
+                inputMode="numeric"
+                autoComplete="off"
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
+              />
+              <p className="mt-1 text-[11px] text-slate-500">بصيغة دولية بدون + أو أصفار (مثال: 212612345678).</p>
+            </div>
+            <div className="md:col-span-2">
               <button
                 type="submit"
-                disabled={creating}
+                disabled={creating || !nameValid}
                 className="w-full rounded-xl border border-emerald-500/40 bg-emerald-500/10 py-2.5 text-sm font-semibold text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-50"
               >
-                {creating ? 'جاري الحفظ وجلب QR…' : '+ حفظ وربط Green API'}
+                {creating ? 'جاري إنشاء الجلسة وجلب QR…' : '+ إنشاء الجلسة وعرض QR'}
               </button>
             </div>
           </form>
@@ -499,23 +448,36 @@ export default function WhatsAppLinkPage() {
             <p className="text-4xl" aria-hidden>
               📱
             </p>
-            <p className="mt-3 text-sm font-medium text-slate-300">لا يوجد Green API instance بعد</p>
-            <p className="mt-1 text-xs text-slate-500">أضف Instance ID و Token ثم اعرض QR</p>
+            <p className="mt-3 text-sm font-medium text-slate-300">لا توجد جلسات واتساب بعد</p>
+            <p className="mt-1 text-xs text-slate-500">اختر اسماً للجلسة ثم امسح QR</p>
           </div>
         ) : (
           instances.map((inst) => {
             const connected = isConnectedState(inst.connectionState);
+            const busy = actionId === inst.id;
             return (
               <article
                 key={inst.id}
                 className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/50 px-4 py-4"
               >
                 <div>
-                  <p className="font-medium text-white">{inst.label ?? inst.instanceName}</p>
-                  <p className="text-xs text-slate-500" dir="ltr">
-                    idInstance: {inst.greenInstanceId ?? '—'}
-                    {inst.greenApiTokenMasked ? ` · token ${inst.greenApiTokenMasked}` : ''}
+                  <p className="font-medium text-white">
+                    {inst.label ?? inst.instanceName}
+                    {inst.legacy ? (
+                      <span className="ms-2 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] text-amber-300">
+                        Green API (قديم)
+                      </span>
+                    ) : null}
                   </p>
+                  <p className="text-xs text-slate-500" dir="ltr">
+                    {inst.instanceName}
+                    {inst.phone ? ` · +${inst.phone}` : ''}
+                  </p>
+                  {inst.legacy ? (
+                    <p className="mt-1 text-xs text-amber-300/90">
+                      رقم قديم مرتبط بـ Green API — اربطه من جديد عبر Evolution ثم احذف هذا السجل.
+                    </p>
+                  ) : null}
                   {inst.connectionError ? (
                     <p className="mt-1 text-xs text-red-300/90">{inst.connectionError}</p>
                   ) : null}
@@ -527,7 +489,7 @@ export default function WhatsAppLinkPage() {
                   ) : null}
                   {isAdmin ? (
                     <>
-                      {!connected ? (
+                      {!inst.legacy && !connected && inst.connectionState !== 'missing' ? (
                         <button
                           type="button"
                           onClick={() => refreshQr(inst.id)}
@@ -536,26 +498,38 @@ export default function WhatsAppLinkPage() {
                           QR / إعادة ربط
                         </button>
                       ) : null}
-                      <button
-                        type="button"
-                        disabled={actionId === inst.id}
-                        onClick={() => handleReboot(inst.id)}
-                        className="rounded-lg border border-slate-600 px-3 py-1 text-xs text-slate-200"
-                      >
-                        Reboot
-                      </button>
-                      <button
-                        type="button"
-                        disabled={actionId === inst.id}
-                        onClick={() => handleLogout(inst.id)}
-                        className="rounded-lg border border-amber-600/50 px-3 py-1 text-xs text-amber-200"
-                      >
-                        Logout
-                      </button>
+                      {!inst.legacy ? (
+                        <>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => runAction(inst.id, rebootWhatsAppInstance)}
+                            className="rounded-lg border border-slate-600 px-3 py-1 text-xs text-slate-200"
+                          >
+                            Restart
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => runAction(inst.id, syncWhatsAppInstanceWebhook, 'تم ضبط Webhook')}
+                            className="rounded-lg border border-sky-600/50 px-3 py-1 text-xs text-sky-200"
+                          >
+                            Webhook
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => runAction(inst.id, logoutWhatsAppInstance)}
+                            className="rounded-lg border border-amber-600/50 px-3 py-1 text-xs text-amber-200"
+                          >
+                            Logout
+                          </button>
+                        </>
+                      ) : null}
                       {!inst.isDefault ? (
                         <button
                           type="button"
-                          onClick={() => handleSetDefault(inst.id)}
+                          onClick={() => runAction(inst.id, setDefaultWhatsAppInstance)}
                           className="rounded-lg border border-slate-600 px-3 py-1 text-xs text-slate-200"
                         >
                           افتراضي
@@ -563,7 +537,7 @@ export default function WhatsAppLinkPage() {
                       ) : null}
                       <button
                         type="button"
-                        onClick={() => handleDelete(inst.id)}
+                        onClick={() => handleDelete(inst)}
                         className="rounded-lg border border-red-500/40 px-3 py-1 text-xs text-red-300"
                       >
                         حذف
