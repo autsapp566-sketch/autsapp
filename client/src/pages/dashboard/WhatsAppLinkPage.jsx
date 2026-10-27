@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import {
   createWhatsAppInstance,
   deleteWhatsAppInstance,
+  fetchEvolutionWebhookLog,
   fetchWhatsAppConnectQr,
   fetchWhatsAppInstanceStatus,
   fetchWhatsAppInstances,
@@ -140,6 +141,74 @@ function IntegrationStatus({ integration }) {
         {integration.apiKeyMasked ? ` · key ${integration.apiKeyMasked}` : ''}
       </p>
       {!good && integration.error ? <p className="mt-1 text-xs">{integration.error}</p> : null}
+    </div>
+  );
+}
+
+/** Last webhook calls received from Evolution: shows whether customer messages reach the API at all. */
+function WebhookLog() {
+  const [hits, setHits] = useState(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await fetchEvolutionWebhookLog();
+      setHits(data.hits ?? []);
+    } catch (err) {
+      setError(err.message ?? 'تعذر التحميل');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  return (
+    <div className="space-y-2 rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-slate-300">آخر الأحداث الواردة من Evolution</h3>
+        <button
+          type="button"
+          onClick={load}
+          disabled={loading}
+          className="rounded-lg border border-slate-600 px-3 py-1 text-xs text-slate-200 disabled:opacity-50"
+        >
+          {loading ? '…' : 'تحديث'}
+        </button>
+      </div>
+      <p className="text-[11px] text-slate-500">
+        إلا صيفطتي رسالة للرقم وما ظهر هنا والو، يعني Evolution ما كيبعتش الأحداث لهاد الـ API (راجع Webhook وحالة الجلسة).
+      </p>
+      {error ? <p className="text-xs text-red-300">{error}</p> : null}
+      {hits && hits.length === 0 ? <p className="text-xs text-amber-300">لم يصل أي حدث بعد.</p> : null}
+      {hits && hits.length > 0 ? (
+        <ul className="max-h-56 space-y-1 overflow-y-auto text-xs">
+          {hits.map((h, i) => (
+            <li
+              key={`${h.at}-${i}`}
+              className={['rounded-lg px-2 py-1.5', h.ok ? 'bg-slate-800/60 text-slate-300' : 'bg-red-500/10 text-red-300'].join(' ')}
+            >
+              <span className="text-slate-500" dir="ltr">
+                {new Date(h.at).toLocaleTimeString()}
+              </span>{' '}
+              <span className="font-mono" dir="ltr">
+                {h.event ?? '?'}
+              </span>{' '}
+              {h.jid ? (
+                <span className="text-slate-500" dir="ltr">
+                  {h.jid}
+                </span>
+              ) : null}{' '}
+              — {h.result}
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }
@@ -510,6 +579,8 @@ export default function WhatsAppLinkPage() {
           })
         )}
       </div>
+
+      {isAdmin ? <WebhookLog /> : null}
 
       <p className="text-xs text-slate-600">
         إعدادات OpenAI والبرومبت:{' '}

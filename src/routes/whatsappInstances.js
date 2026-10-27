@@ -21,6 +21,7 @@ import {
   setInstanceWebhook,
   verifyEvolutionKey,
 } from '../services/evolutionService.js';
+import { listEvolutionHits } from '../services/evolutionWebhookLog.js';
 import { getStateInstance, isGreenConnectedState, resolveGreenCredentials } from '../services/greenApi.js';
 import { isLegacyGreenRow, promoteDefaultIfLegacy } from '../services/whatsappInstanceStore.js';
 
@@ -129,6 +130,15 @@ router.get('/integration', requireAdmin, async (req, res, next) => {
       error: !cfg.configured ? 'EVOLUTION_API_URL / EVOLUTION_API_KEY غير مضبوطين' : ping?.error ?? key?.error ?? null,
       webhookUrl: webhookUrlFor(req) ?? '(يُضبط تلقائياً عند الربط من النسخة المنشورة)',
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Last webhook calls received from Evolution (to debug "messages do not arrive"). */
+router.get('/webhook-log', requireAdmin, async (_req, res, next) => {
+  try {
+    res.json({ hits: await listEvolutionHits() });
   } catch (err) {
     next(err);
   }

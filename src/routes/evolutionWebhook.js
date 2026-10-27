@@ -9,6 +9,7 @@ import {
   getMediaBase64,
   rememberConnectionState,
 } from '../services/evolutionService.js';
+import { recordEvolutionHit } from '../services/evolutionWebhookLog.js';
 import { handleIncomingMessage } from '../services/incomingMessage.js';
 import { findInstanceRow, promoteDefaultIfLegacy } from '../services/whatsappInstanceStore.js';
 
@@ -51,20 +52,33 @@ async function handleConnectionUpdate(update) {
  */
 router.post('/', async (req, res) => {
   if (!tokenMatches(req.query.token)) {
+    await recordEvolutionHit({
+      event: normalizeEvolutionEvent(req.body?.event),
+      body: req.body,
+      result: 'رُفض: token غير صحيح (أعد ضبط Webhook)',
+      ok: false,
+    });
     return res.status(401).json({ ok: false, error: 'invalid webhook token' });
   }
 
+  const event = normalizeEvolutionEvent(req.body?.event);
   try {
-    const event = normalizeEvolutionEvent(req.body?.event);
-
     if (event === 'CONNECTION_UPDATE') {
       const update = parseEvolutionConnectionUpdate(req.body);
       if (update) await handleConnectionUpdate(update);
+      await recordEvolutionHit({ event, body: req.body, result: `حالة الاتصال: ${update?.state ?? '?'}` });
       return res.status(200).json({ ok: true, event });
     }
 
     const parsed = parseEvolutionWebhook(req.body);
     if (!parsed) {
+      const key = req.body?.data?.key;
+      let reason = 'حدث غير مدعوم';
+      if (key?.fromMe) reason = 'تُجوهلت: رسالة صادرة من نفس الرقم (fromMe)';
+      else if (String(key?.remoteJid ?? '').endsWith('@g.us')) reason = 'تُجوهلت: رسالة مجموعة';
+      else if (String(key?.remoteJid ?? '').includes('status@broadcast')) reason = 'تُجوهلت: حالة (status)';
+      else if (key) reason = 'تُجوهلت: نوع رسالة غير نصي/صوتي';
+      await recordEvolutionHit({ event, body: req.body, result: reason });
       return res.status(200).json({ ok: true, ignored: true, event, reason: 'unsupported_or_empty_webhook' });
     }
 
@@ -79,10 +93,16 @@ router.post('/', async (req, res) => {
           }
         : undefined,
     });
+    await recordEvolutionHit({
+      event,
+      body: req.body,
+      result: result?.skippedAi ? 'استُلمت (البوت متوقف لهذه المحادثة)' : 'استُلمت وعولجت ✓',
+    });
     return res.status(200).json(result);
   } catch (err) {
     // Always 200 so Evolution does not redeliver the same message in a loop.
     console.error('[evolution-webhook] processing failed:', err);
+    await recordEvolutionHit({ event, body: req.body, result: `خطأ أثناء المعالجة: ${err.message}`.slice(0, 200), ok: false });
     return res.status(200).json({ ok: false, error: err.message });
   }
 });
