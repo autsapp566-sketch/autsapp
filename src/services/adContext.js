@@ -178,7 +178,7 @@ async function analyzeAdWithAi({ title, description, url, imageDataUrl }, catalo
 
   const userContent = [{ type: 'text', text: `=== الإعلان ===\n${textParts.join('\n') || '(لا يوجد نص — اعتمد على الصورة)'}` }];
   if (imageDataUrl) {
-    userContent.push({ type: 'image_url', image_url: { url: imageDataUrl, detail: 'low' } });
+    userContent.push({ type: 'image_url', image_url: { url: imageDataUrl, detail: 'high' } });
   }
 
   userContent.push({ type: 'text', text: '\n=== منتجات الكتالوج ===' });
@@ -240,6 +240,46 @@ async function analyzeAdWithAi({ title, description, url, imageDataUrl }, catalo
     matchedTitle: matched?.title ?? null,
   };
 }
+/**
+ * A photo the customer sent (product they want). Same careful catalog comparison as an ad.
+ * Never throws.
+ * @param {string} dataUrl
+ * @returns {Promise<null | { note: string, prompt: string }>}
+ */
+export async function describeCustomerProductImage(dataUrl) {
+  if (!dataUrl) return null;
+  try {
+    const catalog = await loadCatalogProducts();
+    const analysis = await analyzeAdWithAi(
+      { title: 'صورة أرسلها الزبون', description: '', url: null, imageDataUrl: dataUrl },
+      catalog
+    );
+    const lines = ['--- الزبون أرسل صورة منتج ---'];
+    if (analysis.productName) lines.push(`ما يظهر في الصورة: ${analysis.productName}`);
+    if (analysis.description) lines.push(`التفاصيل: ${analysis.description}`);
+    if (analysis.colors.length) lines.push(`ألوان ظاهرة: ${analysis.colors.join('، ')}`);
+    if (analysis.matchedTitle) {
+      lines.push(`المنتج المطابق في الكتالوج: «${analysis.matchedTitle}»`);
+      lines.push(
+        'التعليمات: جاوب على هاد المنتج مباشرة من الكتالوج (الثمن، الألوان، المقاسات) وبعث صورته. ما تسولش «أي منتج تقصد؟». الصورة وحدها ماشي طلب مؤكد: score بين 5 و 7 و handoff = false حتى يقول بوضوح أنه باغي ياخذ أو يعطي المدينة.'
+      );
+    } else {
+      lines.push('المنتج المطابق في الكتالوج: لا يوجد تطابق واضح.');
+      lines.push(
+        'التعليمات: وصف اللي بان فالصورة بالدارجة، وما تخترعش الثمن. إلا كان شي منتج قريب فالكatalog اقترحو وقول أنك ما متأكدش. سؤال واحد فقط إلا بقى غامض.'
+      );
+    }
+    const label = analysis.matchedTitle ?? analysis.productName ?? 'صورة منتج';
+    return {
+      note: `📷 صورة: ${label}${analysis.matchedTitle ? ' ✅ فالكatalog' : ''}`,
+      prompt: lines.join('\n'),
+    };
+  } catch (err) {
+    console.error('[image] customer photo analysis failed:', err.message);
+    return null;
+  }
+}
+
 /* ------------------------------------------------------------------ public API */
 
 /**

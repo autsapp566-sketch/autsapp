@@ -1,3 +1,4 @@
+import { describeCustomerProductImage } from './adContext.js';
 import { processIncomingWhatsAppMessage } from './whatsappLeadFlow.js';
 import { transcribeWhatsAppAudio } from './voiceAi.js';
 import { sendWhatsAppText } from './whatsappMessaging.js';
@@ -33,10 +34,11 @@ export async function downloadAudioFromUrl(url, fallbackMime) {
  *   remoteJid: string, phone: string, text: string, pushName: string | null,
  *   idMessage: string | null, instanceId: string | null, isEdited?: boolean, ad?: object | null,
  *   audio?: object,
+ *   image?: { messageId: string, mimeType: string },
  * }} parsed
- * @param {{ provider: string, fetchAudio?: () => Promise<{ buffer: Buffer, mimeType: string }> }} options
+ * @param {{ provider: string, fetchAudio?: () => Promise<{ buffer: Buffer, mimeType: string }>, fetchImage?: () => Promise<{ buffer: Buffer, mimeType: string }> }} options
  */
-export async function handleIncomingMessage(parsed, { provider, fetchAudio }) {
+export async function handleIncomingMessage(parsed, { provider, fetchAudio, fetchImage }) {
   const input = {
     remoteJid: parsed.remoteJid,
     phone: parsed.phone,
@@ -46,6 +48,7 @@ export async function handleIncomingMessage(parsed, { provider, fetchAudio }) {
     isVoiceNote: false,
     isEdited: Boolean(parsed.isEdited),
     ad: parsed.ad ?? null,
+    imageContext: null,
   };
 
   if (parsed.audio) {
@@ -71,6 +74,21 @@ export async function handleIncomingMessage(parsed, { provider, fetchAudio }) {
       }
       return { ok: true, provider, idMessage: parsed.idMessage, audioTranscribed: false, error: err.message };
     }
+  }
+
+  if (parsed.image && fetchImage) {
+    try {
+      const { buffer, mimeType } = await fetchImage();
+      const dataUrl = `data:${mimeType || 'image/jpeg'};base64,${buffer.toString('base64')}`;
+      const described = await describeCustomerProductImage(dataUrl);
+      if (described) {
+        input.imageContext = described.prompt;
+        if (!input.text) input.text = described.note;
+      }
+    } catch (err) {
+      console.error('[webhook] customer image failed:', err.message);
+    }
+    if (!input.text) input.text = '📷 صورة منتج';
   }
 
   const result = await processIncomingWhatsAppMessage(input);

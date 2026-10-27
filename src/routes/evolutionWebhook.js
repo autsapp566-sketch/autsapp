@@ -84,6 +84,12 @@ router.post('/', async (req, res) => {
 
     const result = await handleIncomingMessage(parsed, {
       provider: 'evolution',
+      fetchImage: parsed.image
+        ? async () => {
+            const media = await getMediaBase64(parsed.instanceId, parsed.image.messageId);
+            return { buffer: Buffer.from(media.base64, 'base64'), mimeType: media.mimeType || parsed.image.mimeType };
+          }
+        : undefined,
       fetchAudio: parsed.audio
         ? async () => {
             const media = parsed.audio.base64

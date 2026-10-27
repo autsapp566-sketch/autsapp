@@ -89,6 +89,7 @@ function resolveLeadStatus(aiStatus, currentStatus, aiPaused) {
  *   isVoiceNote?: boolean,
  *   isEdited?: boolean,
  *   ad?: object | null,
+ *   imageContext?: string | null,
  * }} input
  */
 export async function processIncomingWhatsAppMessage(input) {
@@ -108,7 +109,9 @@ export async function processIncomingWhatsAppMessage(input) {
       ? `✏️ (رسالة معدّلة) ${input.text}`
       : input.text;
   // The note stays in the history so follow-up messages still know which product the ad was about.
-  const userContent = adContext ? `${baseContent}\n${adContext.note}` : baseContent;
+  const userContent = [baseContent, adContext?.note, input.imageContext ? '📷 صورة منتج' : null]
+    .filter(Boolean)
+    .join('\n');
 
   const userMessage = await prisma.message.create({
     data: {
@@ -138,7 +141,7 @@ export async function processIncomingWhatsAppMessage(input) {
   const qualification = await qualifyLead(conversationHistory, {
     leadName: lead.name,
     leadPhone: lead.phone,
-    adContext: adContext?.prompt ?? null,
+    adContext: [adContext?.prompt, input.imageContext].filter(Boolean).join('\n\n') || null,
   });
 
   // Serious buyers (score >= 8) and anyone asking for a human / video call go to the

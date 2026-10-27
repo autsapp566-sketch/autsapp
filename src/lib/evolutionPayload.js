@@ -96,6 +96,20 @@ export function parseEvolutionWebhook(body) {
     isGroup: false,
   };
 
+  if (message.imageMessage) {
+    const caption = String(message.imageMessage.caption ?? '').trim();
+    return {
+      ...common,
+      text: caption,
+      isEdited: edited || event === 'MESSAGES_EDITED',
+      ad: caption ? extractAdFromMessage(message, caption) : null,
+      image: {
+        messageId: String(key.id ?? ''),
+        mimeType: String(message.imageMessage.mimetype ?? 'image/jpeg'),
+      },
+    };
+  }
+
   if (message.audioMessage) {
     return {
       ...common,
