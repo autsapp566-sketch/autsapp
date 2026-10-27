@@ -63,13 +63,21 @@ export async function createAdminAlert({ kind, message, leadId = null }) {
  * @returns {Promise<{ id: string, kind: string, message: string, leadId: string | null, createdAt: Date }[]>}
  */
 export async function listAdminAlerts(after = null) {
-  await ensureTable();
   const since = after ?? new Date(Date.now() - 60 * 60_000);
-  const rows = await prisma.$queryRaw`
+  const query = () => prisma.$queryRaw`
     SELECT "id", "kind", "message", "leadId", "createdAt" FROM "AdminAlert"
     WHERE "createdAt" > ${since}
     ORDER BY "createdAt" DESC
     LIMIT 20
   `;
-  return rows;
+  await ensureTable();
+  try {
+    return await query();
+  } catch (err) {
+    // Table dropped after this warm instance cached "ready" (e.g. DB reset): recreate once and retry.
+    if (!/42P01|does not exist/i.test(String(err?.message ?? err?.code))) throw err;
+    tableReady = null;
+    await ensureTable();
+    return query();
+  }
 }
