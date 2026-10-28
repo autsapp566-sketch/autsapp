@@ -23,15 +23,16 @@ const SENDER_LABELS = {
 
 /**
  * @param {import('@prisma/client').AiSettings} settings
+ * @param {string} organizationId whose knowledge base is injected (never another tenant's)
  */
-export async function buildQualifierSystemInstruction(settings) {
+export async function buildQualifierSystemInstruction(settings, organizationId) {
   const base =
     settings.employeePrompt?.trim() ||
     settings.systemPrompt?.trim() ||
     MOROCCAN_DARIJA_PERSONA_TEMPLATE;
 
   const scoringRules = settings.qualificationPrompt?.trim() || QUALIFICATION_SCORING_RULES;
-  const knowledge = await buildKnowledgeContextForPrompt();
+  const knowledge = await buildKnowledgeContextForPrompt(organizationId);
 
   return `${base}
 ${knowledge ? `\n\n${knowledge}` : ''}
@@ -161,7 +162,7 @@ export function parseQualificationResult(raw) {
  * Evaluates WhatsApp lead conversation history and returns qualification JSON.
  *
  * @param {Array<{ sender: 'USER' | 'BOT' | 'AGENT', content: string, createdAt?: string | Date }>} conversationHistory
- * @param {{ leadName?: string | null, leadPhone?: string | null }} [context]
+ * @param {{ organizationId: string, leadName?: string | null, leadPhone?: string | null }} context
  */
 export async function qualifyLead(conversationHistory, context = {}) {
   if (context.lead && isLeadAiPaused(context.lead)) {
@@ -175,8 +176,12 @@ export async function qualifyLead(conversationHistory, context = {}) {
     throw err;
   }
 
+  if (!context.organizationId) {
+    throw new Error('qualifyLead requires context.organizationId (tenant isolation)');
+  }
+
   const settings = await getAiSettings();
-  const systemPrompt = await buildQualifierSystemInstruction(settings);
+  const systemPrompt = await buildQualifierSystemInstruction(settings, context.organizationId);
   const client = createOpenAIClientFromSettings(settings);
   const transcript = formatConversationTranscript(conversationHistory);
 

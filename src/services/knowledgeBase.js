@@ -2,6 +2,13 @@ import OpenAI from 'openai';
 import { getAiSettings } from './aiSettings.js';
 import { prisma } from '../lib/prisma.js';
 
+function notFound() {
+  const err = new Error('العنصر غير موجود');
+  err.status = 404;
+  err.expose = true;
+  return err;
+}
+
 export function parseJsonStringArray(raw, fallback = []) {
   if (Array.isArray(raw)) {
     return raw.map((v) => String(v).trim()).filter(Boolean);
@@ -69,13 +76,11 @@ export function serializeKnowledgeItem(row) {
   };
 }
 
-export async function listKnowledgeItems(filter = 'all') {
-  const where =
-    filter === 'product'
-      ? { type: 'PRODUCT' }
-      : filter === 'faq'
-        ? { type: 'FAQ' }
-        : {};
+export async function listKnowledgeItems(organizationId, filter = 'all') {
+  const where = {
+    organizationId,
+    ...(filter === 'product' ? { type: 'PRODUCT' } : filter === 'faq' ? { type: 'FAQ' } : {}),
+  };
 
   const items = await prisma.knowledgeItem.findMany({
     where,
@@ -88,8 +93,8 @@ export async function listKnowledgeItems(filter = 'all') {
 /**
  * Text block injected into AI system instructions.
  */
-export async function buildKnowledgeContextForPrompt() {
-  const items = await prisma.knowledgeItem.findMany({ orderBy: { updatedAt: 'desc' } });
+export async function buildKnowledgeContextForPrompt(organizationId) {
+  const items = await prisma.knowledgeItem.findMany({ where: { organizationId }, orderBy: { updatedAt: 'desc' } });
   if (items.length === 0) {
     return '';
   }
@@ -123,7 +128,7 @@ export async function buildKnowledgeContextForPrompt() {
   return lines.join('\n');
 }
 
-export async function createKnowledgeItem(input) {
+export async function createKnowledgeItem(organizationId, input) {
   const type = input.type === 'FAQ' ? 'FAQ' : 'PRODUCT';
   const title = String(input.title ?? '').trim();
   if (!title) {
@@ -131,6 +136,7 @@ export async function createKnowledgeItem(input) {
   }
 
   const data = {
+    organizationId,
     type,
     title,
     description: String(input.description ?? '').trim(),
@@ -151,10 +157,10 @@ export async function createKnowledgeItem(input) {
   return serializeKnowledgeItem(row);
 }
 
-export async function updateKnowledgeItem(id, input) {
-  const existing = await prisma.knowledgeItem.findUnique({ where: { id } });
+export async function updateKnowledgeItem(organizationId, id, input) {
+  const existing = await prisma.knowledgeItem.findFirst({ where: { id, organizationId } });
   if (!existing) {
-    throw new Error('العنصر غير موجود');
+    throw notFound();
   }
 
   const title = String(input.title ?? existing.title).trim();
@@ -186,11 +192,14 @@ export async function updateKnowledgeItem(id, input) {
   return serializeKnowledgeItem(row);
 }
 
-export async function deleteKnowledgeItem(id) {
-  await prisma.knowledgeItem.delete({ where: { id } });
+export async function deleteKnowledgeItem(organizationId, id) {
+  const { count } = await prisma.knowledgeItem.deleteMany({ where: { id, organizationId } });
+  if (count === 0) {
+    throw notFound();
+  }
 }
 
-export async function generateKnowledgeWithCopilot(brief) {
+export async function generateKnowledgeWithCopilot(organizationId, brief) {
   const settings = await getAiSettings();
   const apiKey = settings.openAiApiKey?.trim();
   if (!apiKey) {
@@ -228,7 +237,7 @@ export async function generateKnowledgeWithCopilot(brief) {
 
   for (const p of data.products ?? []) {
     if (!p?.title) continue;
-    created.push(await createKnowledgeItem({
+    created.push(await createKnowledgeItem(organizationId, {
       type: 'PRODUCT',
       title: p.title,
       description: p.description ?? '',
@@ -238,7 +247,7 @@ export async function generateKnowledgeWithCopilot(brief) {
 
   for (const f of data.faqs ?? []) {
     if (!f?.question) continue;
-    created.push(await createKnowledgeItem({
+    created.push(await createKnowledgeItem(organizationId, {
       type: 'FAQ',
       title: f.question,
       answer: f.answer ?? '',

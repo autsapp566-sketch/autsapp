@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticate, attachUser } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
+import { requirePlatformAdmin } from '../middleware/requirePlatformAdmin.js';
 import {
   getAiSettings,
   serializeAiSettings,
@@ -63,7 +64,8 @@ async function loadCreds() {
   };
 }
 
-router.get('/', async (_req, res, next) => {
+// AI / OpenAI / Green API settings are still ONE platform-wide record: operator only (see requirePlatformAdmin).
+router.get('/', requirePlatformAdmin, async (_req, res, next) => {
   try {
     const row = await getAiSettings();
     res.json({
@@ -76,7 +78,7 @@ router.get('/', async (_req, res, next) => {
   }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', requirePlatformAdmin, async (req, res, next) => {
   try {
     const body = req.body ?? {};
     const row = await updateAiSettings({
@@ -104,9 +106,9 @@ router.post('/', async (req, res, next) => {
 });
 
 /** WhatsApp numbers that get notified when a chat moves to human control / handoff. */
-router.get('/handoff-forward', async (_req, res, next) => {
+router.get('/handoff-forward', async (req, res, next) => {
   try {
-    res.json(await getHandoffForwardSettings());
+    res.json(await getHandoffForwardSettings(req.user.organizationId));
   } catch (err) {
     next(err);
   }
@@ -114,7 +116,7 @@ router.get('/handoff-forward', async (_req, res, next) => {
 
 router.put('/handoff-forward', async (req, res, next) => {
   try {
-    const saved = await saveHandoffForwardSettings({
+    const saved = await saveHandoffForwardSettings(req.user.organizationId, {
       enabled: req.body?.enabled,
       numbers: req.body?.numbers,
     });
@@ -124,9 +126,9 @@ router.put('/handoff-forward', async (req, res, next) => {
   }
 });
 
-router.post('/handoff-forward/test', async (_req, res, next) => {
+router.post('/handoff-forward/test', async (req, res, next) => {
   try {
-    res.json(await sendHandoffForwardTest());
+    res.json(await sendHandoffForwardTest(req.user.organizationId));
   } catch (err) {
     next(err);
   }
@@ -145,7 +147,9 @@ router.post('/evolution/webhook/sync', async (req, res, next) => {
       });
     }
     const webhookUrl = buildEvolutionWebhookUrl(base);
-    const rows = await prisma.whatsAppInstance.findMany({ where: { provider: { not: 'green' } } });
+    const rows = await prisma.whatsAppInstance.findMany({
+      where: { organizationId: req.user.organizationId, provider: { not: 'green' } },
+    });
     const results = [];
     for (const row of rows) {
       try {
@@ -170,7 +174,7 @@ router.post('/evolution/webhook/sync', async (req, res, next) => {
 });
 
 /** Show what Green API currently has configured for the webhook. */
-router.get('/green-webhook', async (req, res, next) => {
+router.get('/green-webhook', requirePlatformAdmin, async (req, res, next) => {
   try {
     const creds = await loadCreds();
     const expectedUrl = `${requestBaseUrl(req)}${WEBHOOK_PATH}`;
@@ -193,7 +197,7 @@ router.get('/green-webhook', async (req, res, next) => {
 });
 
 /** Register this API's webhook URL in Green API and enable incoming messages. */
-router.post('/green-webhook/sync', async (req, res, next) => {
+router.post('/green-webhook/sync', requirePlatformAdmin, async (req, res, next) => {
   try {
     const creds = await loadCreds();
     if (!creds.configured) {

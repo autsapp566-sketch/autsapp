@@ -12,7 +12,7 @@ router.get('/', async (req, res, next) => {
   try {
     const parsed = typeof req.query.after === 'string' ? new Date(req.query.after) : null;
     const after = parsed && !Number.isNaN(parsed.getTime()) ? parsed : null;
-    res.json({ alerts: await listAdminAlerts(after) });
+    res.json({ alerts: await listAdminAlerts(req.user.organizationId, after) });
   } catch (err) {
     next(err);
   }

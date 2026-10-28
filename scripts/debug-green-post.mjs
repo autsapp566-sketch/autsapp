@@ -35,6 +35,7 @@ const count = await prisma.whatsAppInstance.count();
 if (!row) {
   row = await prisma.whatsAppInstance.create({
     data: {
+      organizationId: 'org_legacy',
       instanceName,
       label: body.label || `Green ${finalId}`,
       provider: 'green',

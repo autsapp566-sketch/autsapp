@@ -148,8 +148,11 @@ async function downloadImageAsDataUrl(imageUrl) {
 
 const MAX_CATALOG_IMAGES = 12;
 
-async function loadCatalogProducts() {
-  const rows = await prisma.knowledgeItem.findMany({ where: { type: 'PRODUCT' }, orderBy: { updatedAt: 'desc' } });
+async function loadCatalogProducts(organizationId) {
+  const rows = await prisma.knowledgeItem.findMany({
+    where: { organizationId, type: 'PRODUCT' },
+    orderBy: { updatedAt: 'desc' },
+  });
   return rows.map((r) => {
     const images = parseJsonStringArray(r.imageUrls);
     return {
@@ -246,10 +249,10 @@ async function analyzeAdWithAi({ title, description, url, imageDataUrl }, catalo
  * @param {string} dataUrl
  * @returns {Promise<null | { note: string, prompt: string }>}
  */
-export async function describeCustomerProductImage(dataUrl) {
-  if (!dataUrl) return null;
+export async function describeCustomerProductImage(dataUrl, organizationId) {
+  if (!dataUrl || !organizationId) return null;
   try {
-    const catalog = await loadCatalogProducts();
+    const catalog = await loadCatalogProducts(organizationId);
     const analysis = await analyzeAdWithAi(
       { title: 'صورة أرسلها الزبون', description: '', url: null, imageDataUrl: dataUrl },
       catalog
@@ -289,8 +292,8 @@ export async function describeCustomerProductImage(dataUrl) {
  * @param {null | { url: string | null, title: string, description: string, thumbnailBase64: string | null, thumbnailUrl: string | null }} ad
  * @returns {Promise<null | { url: string | null, title: string, productName: string, matchedTitle: string | null, note: string, prompt: string }>}
  */
-export async function resolveAdContext(ad) {
-  if (!ad) return null;
+export async function resolveAdContext(ad, organizationId) {
+  if (!ad || !organizationId) return null;
 
   try {
     let { title, description } = ad;
@@ -318,7 +321,7 @@ export async function resolveAdContext(ad) {
     const hasSomething = Boolean(title || description || imageDataUrl);
     let analysis = { productName: '', description: '', colors: [], matchedTitle: null };
     if (hasSomething) {
-      const catalog = await loadCatalogProducts();
+      const catalog = await loadCatalogProducts(organizationId);
       analysis = await analyzeAdWithAi({ title, description, url: ad.url, imageDataUrl }, catalog);
     }
 

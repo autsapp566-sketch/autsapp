@@ -2,6 +2,9 @@ import express from 'express';
 import { authenticate, attachUser } from '../middleware/auth.js';
 import { requireAgent } from '../middleware/requireAgent.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
+import { requirePlatformAdmin } from '../middleware/requirePlatformAdmin.js';
+import { requireActiveSubscription } from '../middleware/subscription.js';
+import { createWhatsAppInstanceWithinQuota } from '../services/billing/subscriptionService.js';
 import { prisma } from '../lib/prisma.js';
 import {
   buildEvolutionWebhookUrl,
@@ -101,8 +104,9 @@ async function stateOf(row) {
   }
 }
 
-async function loadRow(id) {
-  const row = await prisma.whatsAppInstance.findUnique({ where: { id } });
+/** Tenant-scoped: an instance of another organization is simply "not found". */
+async function loadRow(id, organizationId) {
+  const row = await prisma.whatsAppInstance.findFirst({ where: { id, organizationId } });
   if (!row) throw httpError(404, 'Instance not found');
   return row;
 }
@@ -115,7 +119,8 @@ function requireEvolutionRow(row) {
 
 router.use(authenticate, attachUser, requireAgent);
 
-router.get('/integration', requireAdmin, async (req, res, next) => {
+// Platform diagnostics (shared Evolution server + raw webhook payloads of ALL tenants): operator only.
+router.get('/integration', requirePlatformAdmin, async (req, res, next) => {
   try {
     const cfg = getEvolutionConfig();
     const [ping, key] = cfg.configured ? await Promise.all([pingEvolution(), verifyEvolutionKey()]) : [null, null];
@@ -136,7 +141,7 @@ router.get('/integration', requireAdmin, async (req, res, next) => {
 });
 
 /** Last webhook calls received from Evolution (to debug "messages do not arrive"). */
-router.get('/webhook-log', requireAdmin, async (_req, res, next) => {
+router.get('/webhook-log', requirePlatformAdmin, async (_req, res, next) => {
   try {
     res.json({ hits: await listEvolutionHits() });
   } catch (err) {
@@ -149,7 +154,10 @@ router.get('/', async (req, res, next) => {
     // Agents restricted to some numbers only see those numbers.
     const allowed = req.user?.instanceIds;
     const rows = await prisma.whatsAppInstance.findMany({
-      where: Array.isArray(allowed) ? { id: { in: allowed } } : undefined,
+      where: {
+        organizationId: req.user.organizationId,
+        ...(Array.isArray(allowed) ? { id: { in: allowed } } : {}),
+      },
       orderBy: { createdAt: 'desc' },
     });
     const instances = await Promise.all(
@@ -165,9 +173,10 @@ router.get('/', async (req, res, next) => {
 });
 
 /** Link a new WhatsApp number: create the Evolution session, register the webhook, return the QR. */
-router.post('/', requireAdmin, async (req, res, next) => {
+router.post('/', requireAdmin, requireActiveSubscription, async (req, res, next) => {
   try {
     requireEvolution();
+    const organizationId = req.user.organizationId;
 
     const body = req.body ?? {};
     const instanceName = String(body.instanceName ?? '').trim().toLowerCase();
@@ -182,20 +191,39 @@ router.post('/', requireAdmin, async (req, res, next) => {
     }
 
     let row = await prisma.whatsAppInstance.findUnique({ where: { instanceName } });
+    // Session names are global on the shared Evolution server: never touch another tenant's session,
+    // and do not reveal that it exists beyond "name taken".
+    if (row && row.organizationId !== organizationId) {
+      throw httpError(409, 'اسم الجلسة مستعمل — اختر اسماً آخر');
+    }
     if (row && isLegacyGreenRow(row)) {
       throw httpError(409, 'اسم الجلسة مستعمل لرقم Green API قديم — اختر اسماً آخر');
     }
 
-    const { created, qr: createQr } = await createInstance({ instanceName, number: number || undefined });
-
-    const count = await prisma.whatsAppInstance.count();
     const data = { label: label || instanceName, provider: 'evolution', phone: number || null };
-    if (row) {
+
+    // A brand-new number consumes a plan slot. Reserve it (atomic subscription + limit check) BEFORE
+    // creating the Evolution session, so a tenant at its limit never creates a session on the server.
+    // Re-linking one of the organization's existing numbers needs no extra slot.
+    let reservedRow = null;
+    if (!row) {
+      reservedRow = await createWhatsAppInstanceWithinQuota(organizationId, { instanceName, ...data });
+      row = reservedRow;
+    }
+
+    let createResult;
+    try {
+      createResult = await createInstance({ instanceName, number: number || undefined });
+    } catch (err) {
+      if (reservedRow) {
+        await prisma.whatsAppInstance.delete({ where: { id: reservedRow.id } }).catch(() => {});
+      }
+      throw err;
+    }
+    const { created, qr: createQr } = createResult;
+
+    if (!reservedRow) {
       row = await prisma.whatsAppInstance.update({ where: { id: row.id }, data });
-    } else {
-      row = await prisma.whatsAppInstance.create({
-        data: { instanceName, ...data, isDefault: count === 0 },
-      });
     }
 
     // Incoming messages / connection updates -> this API (skipped on localhost: unreachable from the internet).
@@ -241,6 +269,7 @@ router.post('/', requireAdmin, async (req, res, next) => {
       webhookError,
     });
   } catch (err) {
+    if (err.billing) return next(err); // 402 + machine-readable code (handled by errorHandler)
     if (err.status) return sendRouteError(res, err);
     next(err);
   }
@@ -248,7 +277,7 @@ router.post('/', requireAdmin, async (req, res, next) => {
 
 router.patch('/:id', requireAdmin, async (req, res, next) => {
   try {
-    const row = await loadRow(req.params.id);
+    const row = await loadRow(req.params.id, req.user.organizationId);
     const data = {};
     if (typeof req.body?.label === 'string') data.label = req.body.label.trim();
     const updated = await prisma.whatsAppInstance.update({ where: { id: row.id }, data });
@@ -258,9 +287,9 @@ router.patch('/:id', requireAdmin, async (req, res, next) => {
   }
 });
 
-router.get('/:id/connect', requireAdmin, async (req, res, next) => {
+router.get('/:id/connect', requireAdmin, requireActiveSubscription, async (req, res, next) => {
   try {
-    const row = await loadRow(req.params.id);
+    const row = await loadRow(req.params.id, req.user.organizationId);
     requireEvolutionRow(row);
     requireEvolution();
 
@@ -285,7 +314,7 @@ router.get('/:id/connect', requireAdmin, async (req, res, next) => {
 
 router.get('/:id/status', async (req, res, next) => {
   try {
-    const row = await loadRow(req.params.id);
+    const row = await loadRow(req.params.id, req.user.organizationId);
     const { state, error } = await stateOf(row);
     const connected = isLegacyGreenRow(row) ? isGreenConnectedState(state) : isEvolutionConnectedState(state);
 
@@ -311,7 +340,7 @@ router.get('/:id/status', async (req, res, next) => {
 
 router.post('/:id/logout', requireAdmin, async (req, res, next) => {
   try {
-    const row = await loadRow(req.params.id);
+    const row = await loadRow(req.params.id, req.user.organizationId);
     requireEvolutionRow(row);
     const result = await logoutInstance(row.instanceName);
     res.json({ ok: true, result });
@@ -323,7 +352,7 @@ router.post('/:id/logout', requireAdmin, async (req, res, next) => {
 
 router.post('/:id/reboot', requireAdmin, async (req, res, next) => {
   try {
-    const row = await loadRow(req.params.id);
+    const row = await loadRow(req.params.id, req.user.organizationId);
     requireEvolutionRow(row);
     const result = await restartInstance(row.instanceName);
     res.json({ ok: true, result });
@@ -336,7 +365,7 @@ router.post('/:id/reboot', requireAdmin, async (req, res, next) => {
 /** Re-register this API's webhook on the instance. */
 router.post('/:id/webhook', requireAdmin, async (req, res, next) => {
   try {
-    const row = await loadRow(req.params.id);
+    const row = await loadRow(req.params.id, req.user.organizationId);
     requireEvolutionRow(row);
     const webhookUrl = webhookUrlFor(req);
     if (!webhookUrl) {
@@ -352,9 +381,9 @@ router.post('/:id/webhook', requireAdmin, async (req, res, next) => {
 
 router.patch('/:id/default', requireAdmin, async (req, res, next) => {
   try {
-    const row = await loadRow(req.params.id);
+    const row = await loadRow(req.params.id, req.user.organizationId);
     await prisma.$transaction([
-      prisma.whatsAppInstance.updateMany({ data: { isDefault: false } }),
+      prisma.whatsAppInstance.updateMany({ where: { organizationId: row.organizationId }, data: { isDefault: false } }),
       prisma.whatsAppInstance.update({ where: { id: row.id }, data: { isDefault: true } }),
     ]);
     const updated = await prisma.whatsAppInstance.findUnique({ where: { id: row.id } });
@@ -367,7 +396,7 @@ router.patch('/:id/default', requireAdmin, async (req, res, next) => {
 /** Delete the session on Evolution API and remove the number from the dashboard. */
 router.delete('/:id', requireAdmin, async (req, res, next) => {
   try {
-    const row = await loadRow(req.params.id);
+    const row = await loadRow(req.params.id, req.user.organizationId);
 
     let remoteDeleted = false;
     let remoteError;
@@ -385,13 +414,15 @@ router.delete('/:id', requireAdmin, async (req, res, next) => {
 
     await prisma.whatsAppInstance.delete({ where: { id: row.id } });
 
-    const hasDefault = await prisma.whatsAppInstance.findFirst({ where: { isDefault: true } });
+    const orgScope = { organizationId: row.organizationId };
+    const hasDefault = await prisma.whatsAppInstance.findFirst({ where: { ...orgScope, isDefault: true } });
     if (!hasDefault) {
       const remaining = await prisma.whatsAppInstance.findFirst({
-        where: { provider: { not: 'green' } },
+        where: { ...orgScope, provider: { not: 'green' } },
         orderBy: { createdAt: 'asc' },
       });
-      const fallback = remaining ?? (await prisma.whatsAppInstance.findFirst({ orderBy: { createdAt: 'asc' } }));
+      const fallback =
+        remaining ?? (await prisma.whatsAppInstance.findFirst({ where: orgScope, orderBy: { createdAt: 'asc' } }));
       if (fallback) {
         await prisma.whatsAppInstance.update({ where: { id: fallback.id }, data: { isDefault: true } });
       }

@@ -1,9 +1,13 @@
 import { prisma } from '../lib/prisma.js';
 import { getAppSetting, setAppSetting } from './appSettings.js';
 import { sendWhatsAppText } from './whatsappMessaging.js';
+import { LEGACY_ORGANIZATION_ID } from '../lib/tenancy.js';
 
-const SETTING_KEY = 'handoffForward';
+const LEGACY_SETTING_KEY = 'handoffForward';
 const MAX_NUMBERS = 5;
+
+/** Stored per organization: one tenant's forward numbers must never be read or used by another. */
+const settingKey = (organizationId) => `${LEGACY_SETTING_KEY}:${organizationId}`;
 
 /**
  * Normalise a phone typed by a human into international digits (no +).
@@ -28,8 +32,12 @@ export function normalizeWhatsappNumber(input) {
   return digits;
 }
 
-export async function getHandoffForwardSettings() {
-  const stored = await getAppSetting(SETTING_KEY);
+export async function getHandoffForwardSettings(organizationId) {
+  let stored = await getAppSetting(settingKey(organizationId));
+  // Pre-multi-tenant installs stored a single global value: it belongs to the legacy organization.
+  if (stored == null && organizationId === LEGACY_ORGANIZATION_ID) {
+    stored = await getAppSetting(LEGACY_SETTING_KEY);
+  }
   const numbers = Array.isArray(stored?.numbers)
     ? stored.numbers.map(normalizeWhatsappNumber).filter(Boolean)
     : [];
@@ -39,7 +47,7 @@ export async function getHandoffForwardSettings() {
 /**
  * @param {{ enabled?: boolean, numbers?: unknown[] }} input
  */
-export async function saveHandoffForwardSettings(input) {
+export async function saveHandoffForwardSettings(organizationId, input) {
   const raw = Array.isArray(input?.numbers) ? input.numbers : [];
   const numbers = [];
   const invalid = [];
@@ -64,7 +72,7 @@ export async function saveHandoffForwardSettings(input) {
     throw err;
   }
   const value = { enabled: input?.enabled !== false, numbers };
-  await setAppSetting(SETTING_KEY, value);
+  await setAppSetting(settingKey(organizationId), value);
   return value;
 }
 
@@ -81,7 +89,7 @@ function describeMessage(content) {
 
 async function buildForwardText(lead, reason) {
   const recent = await prisma.message.findMany({
-    where: { leadId: lead.id },
+    where: { leadId: lead.id, organizationId: lead.organizationId },
     orderBy: { createdAt: 'desc' },
     take: 6,
   });
@@ -105,14 +113,14 @@ async function buildForwardText(lead, reason) {
 /**
  * Notify the configured WhatsApp numbers that a chat moved to human control / handoff.
  * Never throws: forwarding problems must not break the bot flow.
- * @param {{ id: string, phone: string, name?: string | null, summary?: string | null }} lead
+ * @param {{ id: string, organizationId: string, phone: string, name?: string | null, summary?: string | null }} lead
  * @param {{ reason?: string, force?: boolean, instance?: string }} [opts]
  * @returns {Promise<{ sent: string[], failed: { number: string, error: string }[] }>}
  */
 export async function forwardHandoffToAgents(lead, opts = {}) {
   const result = { sent: [], failed: [] };
   try {
-    const settings = await getHandoffForwardSettings();
+    const settings = await getHandoffForwardSettings(lead.organizationId);
     if ((!settings.enabled && !opts.force) || settings.numbers.length === 0) {
       return result;
     }
@@ -123,7 +131,12 @@ export async function forwardHandoffToAgents(lead, opts = {}) {
         continue;
       }
       try {
-        await sendWhatsAppText({ phone: number, text, instance: opts.instance });
+        await sendWhatsAppText({
+          organizationId: lead.organizationId,
+          phone: number,
+          text,
+          instance: opts.instance,
+        });
         result.sent.push(number);
       } catch (err) {
         console.error('[handoff-forward] send failed:', number, err.message);
@@ -137,8 +150,8 @@ export async function forwardHandoffToAgents(lead, opts = {}) {
 }
 
 /** Send a sample message to every configured number (used by the "test" button). */
-export async function sendHandoffForwardTest() {
-  const settings = await getHandoffForwardSettings();
+export async function sendHandoffForwardTest(organizationId) {
+  const settings = await getHandoffForwardSettings(organizationId);
   if (settings.numbers.length === 0) {
     const err = new Error('أضف رقماً واحداً على الأقل ثم احفظ');
     err.status = 400;
@@ -150,7 +163,7 @@ export async function sendHandoffForwardTest() {
   const result = { sent: [], failed: [] };
   for (const number of settings.numbers) {
     try {
-      await sendWhatsAppText({ phone: number, text });
+      await sendWhatsAppText({ organizationId, phone: number, text });
       result.sent.push(number);
     } catch (err) {
       result.failed.push({ number, error: err.message });

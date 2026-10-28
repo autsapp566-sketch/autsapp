@@ -24,4 +24,17 @@ export const env = {
   evolutionApiUrl: (process.env.EVOLUTION_API_URL?.trim() || '').replace(/\/+$/, ''),
   evolutionApiKey: process.env.EVOLUTION_API_KEY?.trim() || '',
   appPublicUrl: process.env.APP_PUBLIC_URL?.trim().replace(/\/$/, '') || '',
+  /** Public URL of the Next.js site (used in verification / reset links). */
+  webPublicUrl: (process.env.WEB_PUBLIC_URL?.trim() || 'http://localhost:3001').replace(/\/+$/, ''),
+  /** e.g. smtps://user:pass@smtp.example.com — when empty, e-mails are only logged (dev). */
+  smtpUrl: process.env.SMTP_URL?.trim() || '',
+  mailFrom: process.env.MAIL_FROM?.trim() || 'Autsapp <no-reply@localhost>',
+  /** Redis used by the Evolution API container (health monitor only), e.g. redis://:pass@host:6379 */
+  redisUrl: process.env.REDIS_URL?.trim() || '',
+  /** Stripe billing (secret key `sk_...`, webhook signing secret `whsec_...`). */
+  stripeSecretKey: process.env.STRIPE_SECRET_KEY?.trim() || '',
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET?.trim() || '',
+  /** Optional Billing Portal configuration id (`bpc_...`); Stripe's default configuration otherwise. */
+  stripePortalConfigurationId: process.env.STRIPE_PORTAL_CONFIGURATION_ID?.trim() || '',
+  trialDays: Math.max(0, Number(process.env.TRIAL_DAYS ?? 14) || 0),
 };

@@ -7,21 +7,28 @@ import { canSeeInstance, getUserAccess } from './agentAccess.js';
 /** @type {import('socket.io').Server | null} */
 let io = null;
 
-/** Is this socket's user allowed to see conversations of `leadInstanceId`? (admin / unrestricted = yes) */
-async function socketCanSee(socket, leadInstanceId) {
+/** Realtime room of an organization's agents. Rooms are per tenant: events never cross organizations. */
+const agentsRoom = (organizationId) => `org:${organizationId}:agents`;
+
+/**
+ * Is this socket's user allowed to see this conversation? Same organization first (hard tenant wall),
+ * then the agent's per-number allow-list (admin / unrestricted = every number of the organization).
+ */
+async function socketCanSee(socket, lead) {
+  if (!lead?.organizationId || socket.data.organizationId !== lead.organizationId) return false;
   const access = await getUserAccess({ id: socket.data.userId, role: socket.data.userRole });
-  return access.active && canSeeInstance(access.instanceIds, leadInstanceId);
+  return access.active && canSeeInstance(access.instanceIds, lead.instanceId);
 }
 
-/** Emit to a room, but only to sockets whose user may see that WhatsApp number's conversations. */
-async function emitScoped(room, event, payload, leadInstanceId) {
+/** Emit to a room, but only to sockets whose user may see that conversation (tenant + number). */
+async function emitScoped(room, event, payload, lead) {
   if (!io) return;
   try {
     const sockets = await io.in(room).fetchSockets();
     await Promise.all(
       sockets.map(async (s) => {
         try {
-          if (await socketCanSee(s, leadInstanceId)) s.emit(event, payload);
+          if (await socketCanSee(s, lead)) s.emit(event, payload);
         } catch (err) {
           console.error('[socket] scoped emit failed:', err.message);
         }
@@ -50,34 +57,61 @@ export function initRealtimeNotifications(httpServer) {
     },
   });
 
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
+    let payload;
     try {
       const token = socket.handshake.auth?.token;
       if (!token) {
         return next(new Error('Authentication required'));
       }
-      const payload = jwt.verify(token, env.jwtSecret);
-      socket.data.userId = payload.sub;
-      socket.data.userRole = payload.role;
-      next();
+      payload = jwt.verify(token, env.jwtSecret);
     } catch {
-      next(new Error('Invalid token'));
+      return next(new Error('Invalid token'));
+    }
+    try {
+      // The organization is read from the DB (never trusted from the token): it decides which rooms
+      // and which conversations this socket may ever receive.
+      const user = await prisma.user.findUnique({
+        where: { id: payload.sub },
+        select: {
+          organizationId: true,
+          role: true,
+          passwordChangedAt: true,
+          bannedAt: true,
+          organization: { select: { suspendedAt: true } },
+        },
+      });
+      if (!user) return next(new Error('Invalid token'));
+      if (user.bannedAt || user.organization?.suspendedAt) return next(new Error('Account suspended'));
+      if (user.passwordChangedAt && Number(payload.iat) < Math.floor(user.passwordChangedAt.getTime() / 1000)) {
+        return next(new Error('Invalid token'));
+      }
+      socket.data.userId = payload.sub;
+      socket.data.userRole = user.role;
+      socket.data.organizationId = user.organizationId;
+      return next();
+    } catch (err) {
+      console.error('[socket] auth lookup failed:', err.message);
+      return next(new Error('Authentication failed'));
     }
   });
 
   io.on('connection', (socket) => {
     const role = socket.data.userRole;
     if (role === 'CONFIRMATION_AGENT' || role === 'ADMIN') {
-      socket.join('confirmation-agents');
+      socket.join(agentsRoom(socket.data.organizationId));
     }
     socket.join(`user:${socket.data.userId}`);
 
     socket.on('lead:subscribe', async (leadId) => {
       if (typeof leadId !== 'string' || leadId.length === 0) return;
       try {
-        // Agents limited to some WhatsApp numbers cannot follow another number's conversation.
-        const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { instanceId: true } });
-        if (lead && (await socketCanSee(socket, lead.instanceId))) {
+        // Same organization only, and agents limited to some WhatsApp numbers cannot follow another number's conversation.
+        const lead = await prisma.lead.findFirst({
+          where: { id: leadId, organizationId: socket.data.organizationId },
+          select: { organizationId: true, instanceId: true },
+        });
+        if (lead && (await socketCanSee(socket, lead))) {
           socket.join(`lead:${leadId}`);
         }
       } catch (err) {
@@ -97,6 +131,17 @@ export function initRealtimeNotifications(httpServer) {
 
 export function getIo() {
   return io;
+}
+
+/** Drop live sockets after a ban / suspension (the handshake check only covers new connections). */
+export async function disconnectSockets({ userId, organizationId }) {
+  if (!io) return;
+  const sockets = await io.fetchSockets();
+  for (const socket of sockets) {
+    if ((userId && socket.data.userId === userId) || (organizationId && socket.data.organizationId === organizationId)) {
+      socket.disconnect(true);
+    }
+  }
 }
 
 /**
@@ -126,11 +171,11 @@ export async function notifyLeadQualified(lead) {
   payload.lead.instanceId = lead.instanceId ?? null;
 
   if (lead.assignedToId) {
-    await emitScoped(`user:${lead.assignedToId}`, 'lead:qualified', payload, lead.instanceId);
+    await emitScoped(`user:${lead.assignedToId}`, 'lead:qualified', payload, lead);
     return;
   }
 
-  await emitScoped('confirmation-agents', 'lead:qualified', payload, lead.instanceId);
+  await emitScoped(agentsRoom(lead.organizationId), 'lead:qualified', payload, lead);
 }
 
 /**
@@ -142,8 +187,8 @@ export async function broadcastLeadUpdated(lead) {
   }
   const payload = { lead: serializeLead(lead) };
   await Promise.all([
-    emitScoped('confirmation-agents', 'lead:updated', payload, lead.instanceId),
-    emitScoped(`lead:${lead.id}`, 'lead:updated', payload, lead.instanceId),
+    emitScoped(agentsRoom(lead.organizationId), 'lead:updated', payload, lead),
+    emitScoped(`lead:${lead.id}`, 'lead:updated', payload, lead),
   ]);
 }
 
@@ -160,7 +205,7 @@ export async function broadcastMessageCreated(lead, message) {
     message: serializeMessage(message),
   };
   await Promise.all([
-    emitScoped(`lead:${lead.id}`, 'message:new', payload, lead.instanceId),
-    emitScoped('confirmation-agents', 'message:new', payload, lead.instanceId),
+    emitScoped(`lead:${lead.id}`, 'message:new', payload, lead),
+    emitScoped(agentsRoom(lead.organizationId), 'message:new', payload, lead),
   ]);
 }

@@ -9,7 +9,12 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────────────────────
+
 enum UserRole {
+  /// Organization admin (owner). Manages numbers, team, knowledge base, billing.
   ADMIN
   CONFIRMATION_AGENT
 }
@@ -33,50 +38,226 @@ enum KnowledgeItemType {
   FAQ
 }
 
-model User {
+enum PlanTier {
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum BillingProvider {
+  STRIPE
+  PADDLE
+  /// Invoiced / granted manually (enterprise deals, legacy accounts).
+  MANUAL
+}
+
+enum UsageMetric {
+  AI_MESSAGES
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tenancy & billing
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A tenant (the paying customer). Every tenant-owned row carries `organizationId`.
+model Organization {
   id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  role      UserRole @default(CONFIRMATION_AGENT)
+  name      String
+  slug      String   @unique
+  /// Set by a super admin: every member is locked out and the bot stops answering.
+  suspendedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  assignedLeads Lead[] @relation("LeadAssignee")
+  users          User[]
+  subscription   Subscription?
+  usageLimits    UsageLimit[]
+  instances      WhatsAppInstance[]
+  leads          Lead[]
+  messages       Message[]
+  knowledgeItems KnowledgeItem[]
 }
+
+/// Catalogue of sellable tiers. Limits are `null` = unlimited. Seeded by migration / `npm run db:seed`;
+/// the single source of truth for the numbers is `src/services/billing/plans.js`.
+model Plan {
+  id                   String   @id @default(cuid())
+  tier                 PlanTier @unique
+  name                 String
+  priceMonthlyCents    Int      @default(0)
+  currency             String   @default("USD")
+  /// Max linked WhatsApp numbers (null = unlimited).
+  maxWhatsAppInstances Int?
+  /// AI replies per billing period (null = unlimited).
+  monthlyAiMessages    Int?
+  stripePriceId        String?  @unique
+  paddlePriceId        String?  @unique
+  isActive             Boolean  @default(true)
+  sortOrder            Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  subscriptions Subscription[]
+}
+
+/// One subscription per organization (plan changes update the row; billing history lives in Stripe/Paddle).
+model Subscription {
+  id             String             @id @default(cuid())
+  organizationId String             @unique
+  planId         String
+  status         SubscriptionStatus @default(ACTIVE)
+  provider       BillingProvider    @default(MANUAL)
+
+  stripeCustomerId     String? @unique
+  stripeSubscriptionId String? @unique
+  paddleCustomerId     String? @unique
+  paddleSubscriptionId String? @unique
+
+  currentPeriodStart DateTime  @default(now())
+  /// null = no expiry (manual / enterprise accounts); usage then resets on calendar months (UTC).
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean   @default(false)
+  canceledAt         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan         Plan         @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([status])
+  @@index([currentPeriodEnd])
+  @@index([planId])
+}
+
+/// Metered usage of one organization for one billing period. `quota` is a snapshot of the plan limit
+/// (null = unlimited) refreshed on every consumption, so plan changes apply immediately.
+/// Incremented atomically in SQL (see `consumeAiMessage`), never read-modify-write.
+model UsageLimit {
+  id             String      @id @default(cuid())
+  organizationId String
+  metric         UsageMetric
+  periodStart    DateTime
+  periodEnd      DateTime
+  used           Int         @default(0)
+  quota          Int?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, metric, periodStart])
+  @@index([organizationId, metric, periodEnd])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Users
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id             String   @id @default(cuid())
+  organizationId String
+  email          String   @unique
+  password       String
+  role           UserRole @default(CONFIRMATION_AGENT)
+  /// Null until the owner clicks the verification link. Unverified users cannot log in.
+  emailVerifiedAt   DateTime?
+  /// Sessions (JWTs) issued before this instant are rejected — set on every password reset.
+  passwordChangedAt DateTime?
+  /// Platform-level role, independent from the tenant role above (`role` = ADMIN / CONFIRMATION_AGENT
+  /// inside an organization). Only SUPER_ADMIN may use /admin and /api/admin. Granted out-of-band
+  /// (`npm run admin:grant -- <email>`), never through any API.
+  platformRole   PlatformRole @default(USER)
+  /// Set by a super admin: the user can no longer log in or use the API.
+  bannedAt       DateTime?
+  bannedReason   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignedLeads Lead[]       @relation("LeadAssignee")
+  authTokens    AuthToken[]
+
+  @@index([organizationId])
+  @@index([platformRole])
+}
+
+enum PlatformRole {
+  USER
+  SUPER_ADMIN
+}
+
+/// One row per Stripe event we have received (id = Stripe's `evt_...`). Makes webhook delivery
+/// idempotent: Stripe retries and may deliver the same event twice.
+model StripeWebhookEvent {
+  id          String    @id
+  type        String
+  receivedAt  DateTime  @default(now())
+  /// null while being processed / if processing failed (Stripe will retry).
+  processedAt DateTime?
+
+  @@index([receivedAt])
+}
+
+/// Append-only trail of every privileged action taken from the super-admin panel.
+model AdminAuditLog {
+  id           String   @id @default(cuid())
+  actorId      String?
+  actorEmail   String
+  action       String
+  targetUserId String?
+  targetOrgId  String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([targetUserId])
+}
+
+enum AuthTokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+/// Single-use, expiring links. Only the SHA-256 of the token is stored.
+model AuthToken {
+  id        String        @id @default(cuid())
+  userId    String
+  type      AuthTokenType
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Platform-level (not yet tenant-scoped — see README of the multi-tenant migration)
+// ─────────────────────────────────────────────────────────────────────────────
 
 model AiSettings {
-  id                     String   @id @default("default")
-  openAiApiKey           String?
-  greenApiInstanceId     String?
-  greenApiToken          String?
-  greenApiUrl            String?
-  appPublicUrl           String?
-  textModel              String   @default("gpt-4o-mini")
-  sttEnabled     Boolean  @default(true)
-  ttsEnabled     Boolean  @default(false)
-  ttsVoice       String   @default("nova")
-  employeePrompt       String @default("")
-  qualificationPrompt  String @default("")
-  systemPrompt         String
-  updatedAt      DateTime @updatedAt
-}
-
-model KnowledgeItem {
-  id          String            @id @default(cuid())
-  type        KnowledgeItemType
-  title       String
-  description String            @default("")
-  answer      String            @default("")
-  priceDh     Int?
-  imageUrl    String?
-  imageUrls   String            @default("[]")
-  colors      String            @default("[]")
-  sizes       String            @default("[]")
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-
-  @@index([type])
-  @@index([updatedAt])
+  id                  String   @id @default("default")
+  openAiApiKey        String?
+  greenApiInstanceId  String?
+  greenApiToken       String?
+  greenApiUrl         String?
+  appPublicUrl        String?
+  textModel           String   @default("gpt-4o-mini")
+  sttEnabled          Boolean  @default(true)
+  ttsEnabled          Boolean  @default(false)
+  ttsVoice            String   @default("nova")
+  employeePrompt      String   @default("")
+  qualificationPrompt String   @default("")
+  systemPrompt        String
+  updatedAt           DateTime @updatedAt
 }
 
 /// Product images stored in the DB (serverless disks are ephemeral). Table is also auto-created at runtime.
@@ -87,8 +268,38 @@ model UploadedImage {
   createdAt DateTime @default(now())
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Tenant-owned data (hard isolation: every row has a non-null organizationId)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Knowledge base entry (catalogue product or FAQ) of one organization.
+model KnowledgeItem {
+  id             String            @id @default(cuid())
+  organizationId String
+  type           KnowledgeItemType
+  title          String
+  description    String            @default("")
+  answer         String            @default("")
+  priceDh        Int?
+  imageUrl       String?
+  imageUrls      String            @default("[]")
+  colors         String            @default("[]")
+  sizes          String            @default("[]")
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([type])
+  @@index([updatedAt])
+  @@index([organizationId, type])
+  @@index([organizationId, updatedAt])
+}
+
 model WhatsAppInstance {
   id              String   @id @default(cuid())
+  organizationId  String
+  /// Globally unique: it is also the session name on the (shared) Evolution API server.
   instanceName    String   @unique
   label           String?
   phone           String?
@@ -96,56 +307,68 @@ model WhatsAppInstance {
   greenInstanceId String?
   greenApiToken   String?
   greenApiUrl     String?
+  /// Default sending number of its organization.
   isDefault       Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   /// Chats / messages received on this number (strict per-number isolation).
   leads    Lead[]
   messages Message[]
 
   @@index([greenInstanceId])
+  @@index([organizationId])
 }
 
+/// A WhatsApp conversation ("chat") between a customer phone and one of the organization's numbers.
 model Lead {
-  id                  String     @id @default(cuid())
-  phone               String
-  name                String?
-  status              LeadStatus @default(NEW)
-  aiPaused            Boolean    @default(false)
-  qualificationScore  Int?
-  summary             String?
-  assignedToId        String?
+  id                 String     @id @default(cuid())
+  organizationId     String
+  phone              String
+  name               String?
+  status             LeadStatus @default(NEW)
+  aiPaused           Boolean    @default(false)
+  qualificationScore Int?
+  summary            String?
+  assignedToId       String?
   /// WhatsApp number (instance) this conversation belongs to. The same customer phone writing to two
   /// numbers is two separate conversations. NULL only for legacy rows / unknown instances.
-  instanceId          String?
-  createdAt           DateTime   @default(now())
-  updatedAt           DateTime   @updatedAt
+  instanceId         String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 
-  assignedTo User?              @relation("LeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
-  instance   WhatsAppInstance?  @relation(fields: [instanceId], references: [id], onDelete: SetNull)
-  messages   Message[]
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignedTo   User?             @relation("LeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  instance     WhatsAppInstance? @relation(fields: [instanceId], references: [id], onDelete: SetNull)
+  messages     Message[]
 
   @@index([phone])
   @@index([status])
   @@index([assignedToId])
   @@index([instanceId, phone])
   @@index([instanceId, updatedAt])
+  @@index([organizationId, status])
+  @@index([organizationId, updatedAt])
 }
 
 model Message {
-  id        String        @id @default(cuid())
-  leadId    String
-  sender    MessageSender
-  content   String
+  id             String        @id @default(cuid())
+  organizationId String
+  leadId         String
+  sender         MessageSender
+  content        String
   /// Same number as the owning Lead (denormalised so messages can be filtered/audited per number).
-  instanceId String?
-  createdAt DateTime      @default(now())
+  instanceId     String?
+  createdAt      DateTime      @default(now())
 
-  lead     Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  instance WhatsAppInstance? @relation(fields: [instanceId], references: [id], onDelete: SetNull)
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead         Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  instance     WhatsAppInstance? @relation(fields: [instanceId], references: [id], onDelete: SetNull)
 
   @@index([leadId])
   @@index([createdAt])
   @@index([instanceId])
+  @@index([organizationId, createdAt])
 }

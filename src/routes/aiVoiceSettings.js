@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticate, attachUser } from '../middleware/auth.js';
-import { requireAdmin } from '../middleware/requireAdmin.js';
+import { requirePlatformAdmin } from '../middleware/requirePlatformAdmin.js';
 import {
   getAiSettings,
   serializeAiSettings,
@@ -14,7 +14,7 @@ import { QUALIFICATION_SYSTEM_PROMPT } from '../services/qualificationPrompt.js'
 
 const router = express.Router();
 
-router.use(authenticate, attachUser, requireAdmin);
+router.use(authenticate, attachUser, requirePlatformAdmin);
 
 async function readSettings(_req, res, next) {
   try {

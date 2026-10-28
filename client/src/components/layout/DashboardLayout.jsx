@@ -4,6 +4,7 @@ import { useLeadNotifications } from '../../hooks/useLeadNotifications.js';
 import { useLeadSoundAlerts } from '../../hooks/useLeadSoundAlerts.js';
 import { useAdminAlerts } from '../../hooks/useAdminAlerts.js';
 import SoundSettingsPanel from './SoundSettingsPanel.jsx';
+import ImpersonationBanner from './ImpersonationBanner.jsx';
 import { canOpenPage, PAGE_ACCESS } from '../../lib/access.js';
 
 const mainNavItems = [
@@ -55,8 +56,26 @@ function NavItem({ to, end, label, icon }) {
   );
 }
 
+/**
+ * The billing page is a server-rendered page of the Next.js gateway (/dashboard/billing), not a
+ * route of this SPA, so it needs a real navigation instead of a client-side <NavLink>.
+ */
+function BillingLink() {
+  return (
+    <a
+      href="/dashboard/billing"
+      className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-slate-400 transition hover:bg-slate-800/80 hover:text-slate-100"
+    >
+      <span className="text-lg leading-none" aria-hidden>
+        💳
+      </span>
+      <span>الاشتراك والفوترة</span>
+    </a>
+  );
+}
+
 export default function DashboardLayout() {
-  const { user, logout } = useAuth();
+  const { user, logout, impersonation } = useAuth();
   const navigate = useNavigate();
   const { alert, dismissAlert } = useLeadNotifications();
   const { adminAlerts, dismissAdminAlerts } = useAdminAlerts();
@@ -64,8 +83,10 @@ export default function DashboardLayout() {
     useLeadSoundAlerts();
 
   function handleLogout() {
-    logout();
-    navigate('/login', { replace: true });
+    // In gateway mode logout() redirects the whole page to the Next.js login itself.
+    if (!logout()) {
+      navigate('/login', { replace: true });
+    }
   }
 
   return (
@@ -86,6 +107,7 @@ export default function DashboardLayout() {
           {visibleNavItems(user, settingsNavItems).map((item) => (
             <NavItem key={item.to} {...item} />
           ))}
+          {user?.role === 'ADMIN' ? <BillingLink /> : null}
         </nav>
         <div className="border-t border-slate-800 p-4 text-xs text-slate-500">
           OpenAI والصوت والبرومبت من إعدادات الحساب
@@ -93,6 +115,7 @@ export default function DashboardLayout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
+        {impersonation ? <ImpersonationBanner email={user?.email} /> : null}
         <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-900/95 backdrop-blur">
           <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6">
             <div>

@@ -16,6 +16,9 @@ import analyticsRoutes from './routes/analytics.js';
 import alertsRoutes from './routes/alerts.js';
 import teamRoutes from './routes/team.js';
 import botPlaygroundRoutes from './routes/botPlayground.js';
+import billingRoutes from './routes/billing.js';
+import { adminRouter } from './routes/admin.js';
+import { stripeWebhookHandler } from './routes/stripeWebhook.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { getProductUploadDir } from './lib/uploadDir.js';
 import { getUploadedImage } from './services/uploadedImages.js';
@@ -24,6 +27,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export function createApp() {
   const app = express();
+
+  // Stripe signs the raw request bytes: this route must see the body BEFORE express.json() parses it.
+  app.post('/api/stripe/webhook', express.raw({ type: 'application/json', limit: '1mb' }), stripeWebhookHandler);
 
   app.use(cors(corsOptions));
   app.use(express.json({ limit: '1mb' }));
@@ -70,6 +76,8 @@ export function createApp() {
   app.use('/api/alerts', alertsRoutes);
   app.use('/api/team', teamRoutes);
   app.use('/api/bot-playground', botPlaygroundRoutes);
+  app.use('/api/billing', billingRoutes);
+  app.use('/api/admin', adminRouter);
   app.use('/uploads/products', express.static(getProductUploadDir()));
   app.use(errorHandler);
 

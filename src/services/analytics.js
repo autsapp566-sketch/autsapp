@@ -14,12 +14,14 @@ function pct(part, total) {
 }
 
 /**
- * @param {{ instanceIds?: string[] | null }} [scope] allowed WhatsApp numbers (null/undefined = all)
+ * @param {{ organizationId: string, instanceIds?: string[] | null }} scope
+ *   organization (mandatory) + allowed WhatsApp numbers (null/undefined = all of the organization's)
  */
-export async function getAnalyticsOverview({ instanceIds = null } = {}) {
+export async function getAnalyticsOverview({ organizationId, instanceIds = null }) {
+  if (!organizationId) throw new Error('organizationId is required');
   const restricted = Array.isArray(instanceIds);
-  const leadScope = restricted ? { instanceId: { in: instanceIds } } : {};
-  const messageScope = restricted ? { instanceId: { in: instanceIds } } : {};
+  const leadScope = { organizationId, ...(restricted ? { instanceId: { in: instanceIds } } : {}) };
+  const messageScope = { organizationId, ...(restricted ? { instanceId: { in: instanceIds } } : {}) };
   const [totalMessages, voiceMessages, orders, totalLeads, sentimentCounts, recentMessages] =
     await Promise.all([
       prisma.message.count({ where: messageScope }),

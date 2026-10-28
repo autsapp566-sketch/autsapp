@@ -10,6 +10,7 @@ try {
 try {
   await prisma.whatsAppInstance.create({
     data: {
+      organizationId: 'org_legacy',
       instanceName: `test-${Date.now()}`,
       label: 'test',
       provider: 'green',

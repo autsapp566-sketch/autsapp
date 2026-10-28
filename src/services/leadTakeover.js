@@ -29,12 +29,13 @@ function resumeStatus(lead) {
 }
 
 /**
+ * @param {string} organizationId tenant of the caller: a lead of another organization is "not found"
  * @param {string} leadId
  * @param {boolean} aiPaused
  * @param {string} userId
  */
-export async function setLeadAiPaused(leadId, aiPaused, userId) {
-  const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+export async function setLeadAiPaused(organizationId, leadId, aiPaused, userId) {
+  const lead = await prisma.lead.findFirst({ where: { id: leadId, organizationId } });
   if (!lead) {
     const err = new Error('Lead not found');
     err.status = 404;

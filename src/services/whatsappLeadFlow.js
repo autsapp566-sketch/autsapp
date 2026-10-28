@@ -8,7 +8,9 @@ import { broadcastLeadUpdated, broadcastMessageCreated, notifyLeadQualified } fr
 import { forwardHandoffToAgents } from './handoffForward.js';
 import { createAdminAlert } from './adminAlerts.js';
 import { resolveAdContext } from './adContext.js';
-import { resolveInstanceId } from './whatsappInstanceStore.js';
+import { resolveInstance } from './whatsappInstanceStore.js';
+import { BILLING_MESSAGES } from './billing/billingErrors.js';
+import { consumeAiMessage, releaseAiMessage } from './billing/subscriptionService.js';
 import { prisma } from '../lib/prisma.js';
 
 /** @type {Record<string, import('@prisma/client').LeadStatus>} */
@@ -27,13 +29,15 @@ const HANDOFF_LABELS = {
 /**
  * A conversation is unique per (WhatsApp number, customer phone): the same customer writing to two of
  * our numbers gets two independent conversations.
+ * Always tenant-scoped: a customer phone is only ever matched inside its own organization.
+ * @param {string} organizationId
  * @param {string} phone
  * @param {string | null | undefined} pushName
  * @param {string | null | undefined} instanceId database id of the WhatsApp number that received it
  */
-export async function findOrCreateLead(phone, pushName, instanceId = null) {
+export async function findOrCreateLead(organizationId, phone, pushName, instanceId = null) {
   let lead = await prisma.lead.findFirst({
-    where: { phone, instanceId: instanceId ?? null },
+    where: { organizationId, phone, instanceId: instanceId ?? null },
     orderBy: { createdAt: 'desc' },
   });
 
@@ -49,6 +53,7 @@ export async function findOrCreateLead(phone, pushName, instanceId = null) {
 
   return prisma.lead.create({
     data: {
+      organizationId,
       phone,
       name: pushName ?? null,
       status: 'NEW',
@@ -90,18 +95,25 @@ function resolveLeadStatus(aiStatus, currentStatus, aiPaused) {
  *   isEdited?: boolean,
  *   ad?: object | null,
  *   imageContext?: string | null,
- * }} input
+ *   organizationId?: string, instanceDbId?: string,
+ * }} input `organizationId` / `instanceDbId` are resolved from `instance` when not provided
  */
 export async function processIncomingWhatsAppMessage(input) {
-  // Strict isolation: the conversation is bound to the number that received the message.
-  const instanceId = await resolveInstanceId(input.instance);
-  if (!instanceId) {
-    console.warn(`[whatsapp] message for unregistered instance "${input.instance}" saved without a number`);
+  // Strict isolation: the conversation is bound to the number that received the message, and the
+  // number decides the tenant. A message for a number nobody registered has no owner => dropped.
+  const resolved =
+    input.organizationId && input.instanceDbId
+      ? { id: input.instanceDbId, organizationId: input.organizationId }
+      : await resolveInstance(input.instance);
+  if (!resolved) {
+    console.warn(`[whatsapp] message for unregistered instance "${input.instance}" ignored (no tenant)`);
+    return { leadId: null, skippedAi: true, reason: 'UNREGISTERED_INSTANCE' };
   }
-  const lead = await findOrCreateLead(input.phone, input.pushName, instanceId);
+  const { organizationId } = resolved;
+  const lead = await findOrCreateLead(organizationId, input.phone, input.pushName, resolved.id);
 
   // Customer came from an ad / sent a product link: work out which product it is.
-  const adContext = input.ad ? await resolveAdContext(input.ad) : null;
+  const adContext = input.ad ? await resolveAdContext(input.ad, organizationId) : null;
 
   const baseContent = input.isVoiceNote
     ? `[رسالة صوتية] ${input.text}`
@@ -115,6 +127,7 @@ export async function processIncomingWhatsAppMessage(input) {
 
   const userMessage = await prisma.message.create({
     data: {
+      organizationId,
       leadId: lead.id,
       instanceId: lead.instanceId,
       sender: 'USER',
@@ -138,11 +151,33 @@ export async function processIncomingWhatsAppMessage(input) {
     createdAt: m.createdAt,
   }));
 
-  const qualification = await qualifyLead(conversationHistory, {
-    leadName: lead.name,
-    leadPhone: lead.phone,
-    adContext: [adContext?.prompt, input.imageContext].filter(Boolean).join('\n\n') || null,
-  });
+  // ── Tier enforcement ────────────────────────────────────────────────────────────────────────
+  // Reserve ONE AI message of the organization's plan before the paid OpenAI call. One atomic SQL
+  // statement, so parallel webhooks cannot exceed the quota. Blocked tenants keep receiving (and
+  // storing) customer messages, but the bot stays silent until they renew / upgrade.
+  const usage = await consumeAiMessage(organizationId);
+  if (!usage.allowed) {
+    await createAdminAlert({
+      organizationId,
+      kind: usage.reason === 'PLAN_LIMIT_AI_MESSAGES' ? 'AI_QUOTA_EXCEEDED' : 'SUBSCRIPTION_INACTIVE',
+      message: `⛔ ${BILLING_MESSAGES[usage.reason] ?? 'تم إيقاف الردود الآلية.'} (رسائل الزبائن تُحفظ لكن البوت متوقف)`,
+    });
+    return { leadId: lead.id, skippedAi: true, reason: usage.reason };
+  }
+
+  let qualification;
+  try {
+    qualification = await qualifyLead(conversationHistory, {
+      organizationId,
+      leadName: lead.name,
+      leadPhone: lead.phone,
+      adContext: [adContext?.prompt, input.imageContext].filter(Boolean).join('\n\n') || null,
+    });
+  } catch (err) {
+    // Nothing was answered: do not charge the customer's quota for a failed AI call.
+    await releaseAiMessage(organizationId, usage.periodStart);
+    throw err;
+  }
 
   // Serious buyers (score >= 8) and anyone asking for a human / video call go to the
   // confirmation agent: the bot stops and the conversation continues from the dashboard.
@@ -172,6 +207,7 @@ export async function processIncomingWhatsAppMessage(input) {
 
   const botMessage = await prisma.message.create({
     data: {
+      organizationId,
       leadId: lead.id,
       instanceId: lead.instanceId,
       sender: 'BOT',
@@ -188,6 +224,7 @@ export async function processIncomingWhatsAppMessage(input) {
   let delivered = true;
   try {
     await sendWhatsAppText({
+      organizationId,
       remoteJid: input.remoteJid,
       phone: input.phone,
       text: outboundText,
@@ -198,6 +235,7 @@ export async function processIncomingWhatsAppMessage(input) {
     console.error('[whatsapp] bot reply NOT delivered:', err.message);
     // Admin-only notification — never put system errors inside the customer conversation.
     await createAdminAlert({
+      organizationId,
       kind: err.quota ? 'GREEN_QUOTA' : 'SEND_FAILED',
       leadId: lead.id,
       message: `⚠️ لم يصل رد البوت إلى ${updatedLead.name || updatedLead.phone} (+${updatedLead.phone}): ${err.message.slice(0, 300)}`,
@@ -207,6 +245,7 @@ export async function processIncomingWhatsAppMessage(input) {
   for (const imageUrl of delivered ? imageUrls : []) {
     try {
       await sendWhatsAppImage({
+        organizationId,
         remoteJid: input.remoteJid,
         phone: input.phone,
         imageUrl,
@@ -223,6 +262,7 @@ export async function processIncomingWhatsAppMessage(input) {
       const audioBuffer = await synthesizeWhatsAppSpeech(outboundText);
       if (audioBuffer) {
         await sendWhatsAppAudio({
+          organizationId,
           phone: input.phone,
           instance: input.instance,
           audioBase64: audioBuffer.toString('base64'),

@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticate, attachUser } from '../middleware/auth.js';
-import { requireAdmin } from '../middleware/requireAdmin.js';
+import { requirePlatformAdmin } from '../middleware/requirePlatformAdmin.js';
 import {
   getAiSettings,
   serializeAiSettings,
@@ -11,9 +11,11 @@ import {
 } from '../services/aiSettings.js';
 const router = express.Router();
 
+// Still ONE platform-wide AiSettings record (shared OpenAI key / prompt): operator only until it is
+// made per-organization.
 router.use(authenticate, attachUser);
 
-router.get('/', requireAdmin, async (req, res, next) => {
+router.get('/', requirePlatformAdmin, async (req, res, next) => {
   try {
     const row = await getAiSettings();
     res.json({
@@ -25,7 +27,7 @@ router.get('/', requireAdmin, async (req, res, next) => {
   }
 });
 
-router.patch('/', requireAdmin, async (req, res, next) => {
+router.patch('/', requirePlatformAdmin, async (req, res, next) => {
   try {
     const row = await updateAiSettings({
       openAiApiKey: req.body?.openAiApiKey,
@@ -47,7 +49,7 @@ router.patch('/', requireAdmin, async (req, res, next) => {
   }
 });
 
-router.get('/templates/moroccan', requireAdmin, (_req, res) => {
+router.get('/templates/moroccan', requirePlatformAdmin, (_req, res) => {
   res.json({
     template: MOROCCAN_DARIJA_PERSONA_TEMPLATE,
   });

@@ -10,13 +10,13 @@ import { sendKeyForLead } from './whatsappInstanceStore.js';
  * @param {string} content
  * @param {string} [instance]
  */
-export async function sendAgentWhatsAppMessage(leadId, content, instance) {
+export async function sendAgentWhatsAppMessage(organizationId, leadId, content, instance) {
   const text = typeof content === 'string' ? content.trim() : '';
   if (!text) {
     throw new Error('Message content is required');
   }
 
-  const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+  const lead = await prisma.lead.findFirst({ where: { id: leadId, organizationId } });
   if (!lead) {
     const err = new Error('Lead not found');
     err.status = 404;
@@ -29,6 +29,7 @@ export async function sendAgentWhatsAppMessage(leadId, content, instance) {
 
   // Send first: if WhatsApp rejects it, nothing is saved and the agent sees the real error.
   await sendWhatsAppText({
+    organizationId,
     phone: lead.phone,
     text,
     instance: sendKey,
@@ -36,6 +37,7 @@ export async function sendAgentWhatsAppMessage(leadId, content, instance) {
 
   const message = await prisma.message.create({
     data: {
+      organizationId,
       leadId: lead.id,
       instanceId: lead.instanceId,
       sender: 'AGENT',
@@ -63,9 +65,9 @@ function isLocalBase(base) {
 /**
  * Store a recorded voice note and send it to the customer on WhatsApp as an audio file.
  * Green API fetches the file from a public URL, so localhost needs APP_PUBLIC_URL (e.g. an ngrok URL).
- * @param {{ leadId: string, buffer: Buffer, mimeType: string, requestBase: string, instance?: string }} params
+ * @param {{ organizationId: string, leadId: string, buffer: Buffer, mimeType: string, requestBase: string, instance?: string }} params
  */
-export async function sendAgentWhatsAppVoice({ leadId, buffer, mimeType, requestBase, instance }) {
+export async function sendAgentWhatsAppVoice({ organizationId, leadId, buffer, mimeType, requestBase, instance }) {
   const mime = String(mimeType ?? '').split(';')[0].trim().toLowerCase();
   const ext = AUDIO_EXT[mime];
   if (!ext) {
@@ -81,7 +83,7 @@ export async function sendAgentWhatsAppVoice({ leadId, buffer, mimeType, request
     throw err;
   }
 
-  const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+  const lead = await prisma.lead.findFirst({ where: { id: leadId, organizationId } });
   if (!lead) {
     const err = new Error('Lead not found');
     err.status = 404;
@@ -107,6 +109,7 @@ export async function sendAgentWhatsAppVoice({ leadId, buffer, mimeType, request
   const audioUrl = `${base}/api/uploads/images/${id}`;
 
   await sendWhatsAppAudioFile({
+    organizationId,
     phone: lead.phone,
     audioUrl,
     fileName: `voice-${id.slice(0, 8)}.${ext}`,
@@ -115,6 +118,7 @@ export async function sendAgentWhatsAppVoice({ leadId, buffer, mimeType, request
 
   const message = await prisma.message.create({
     data: {
+      organizationId,
       leadId: lead.id,
       instanceId: lead.instanceId,
       sender: 'AGENT',

@@ -22,6 +22,49 @@ export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+/**
+ * Gateway mode: when the dashboard is served by the Next.js site (under /dashboard), the session lives
+ * in an httpOnly cookie owned by Next.js and middleware.ts has already vetted it. This asks the Next.js
+ * bridge for the API bearer token that belongs to that session.
+ *
+ * Resolves `{ gateway: false }` when there is no bridge (standalone SPA: Vite dev / separate deploy),
+ * so the legacy localStorage login keeps working unchanged.
+ */
+export async function syncGatewaySession() {
+  try {
+    const res = await fetch('/api/session/token', {
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+    });
+    const data = await res.json().catch(() => null);
+    if (!data?.gateway) {
+      return { gateway: false, authenticated: false };
+    }
+    if (res.ok && data.token) {
+      setToken(data.token);
+      return { gateway: true, authenticated: true };
+    }
+    clearToken();
+    return { gateway: true, authenticated: false };
+  } catch {
+    return { gateway: false, authenticated: false };
+  }
+}
+
+export async function gatewayLogout() {
+  try {
+    await fetch('/api/session/logout', { method: 'POST', credentials: 'same-origin' });
+  } catch {
+    // The cookie simply expires on its own; the redirect below still lands on the login page.
+  }
+}
+
+export function redirectToGatewayLogin() {
+  const callback = `${window.location.pathname}${window.location.search}`;
+  window.location.replace(`/login?callbackUrl=${encodeURIComponent(callback)}`);
+}
+
 export async function apiFetch(path, options = {}) {
   const headers = new Headers(options.headers ?? {});
   if (!headers.has('Content-Type') && options.body) {

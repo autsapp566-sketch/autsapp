@@ -11,9 +11,11 @@ const DARIJA_GLOSSARY =
   'كوستيم، معطف، كبوط، تشورت، الموديل، الصورة، الفيديو، الوكيل، مكناس، فاس، الدار البيضاء، مراكش، ' +
   'طنجة، الرباط، أكادير، وجدة، تطوان، القنيطرة، سلا، تمارة، العنوان، رقم الهاتف، الكوموند، التأكيد';
 
-async function catalogHint() {
+/** Product names of the organization's own catalogue (never another tenant's). */
+async function catalogHint(organizationId) {
+  if (!organizationId) return '';
   try {
-    const items = await listKnowledgeItems('product');
+    const items = await listKnowledgeItems(organizationId, 'product');
     return items
       .slice(0, 25)
       .map((i) => i.title)
@@ -24,8 +26,8 @@ async function catalogHint() {
   }
 }
 
-async function buildTranscriptionPrompt() {
-  const catalog = await catalogHint();
+async function buildTranscriptionPrompt(organizationId) {
+  const catalog = await catalogHint(organizationId);
   return (
     'تسجيل صوتي من واتساب لزبون مغربي يتكلم بالدارجة المغربية (وأحياناً بكلمات فرنسية) ' +
     'مع متجر ملابس. فرّغ الكلام كما قيل بالضبط دون ترجمة. ' +
@@ -38,10 +40,10 @@ async function buildTranscriptionPrompt() {
  * Second pass: fix obvious mishearings using the store catalog, without
  * inventing anything. Falls back to the raw transcript on any problem.
  */
-async function refineDarijaTranscript(client, settings, raw) {
+async function refineDarijaTranscript(client, settings, raw, organizationId) {
   if (raw.length < 6) return raw;
   try {
-    const catalog = await catalogHint();
+    const catalog = await catalogHint(organizationId);
     const completion = await client.chat.completions.create({
       model: settings.textModel && settings.textModel.startsWith('gpt-4') ? settings.textModel : 'gpt-4o-mini',
       temperature: 0,
@@ -76,8 +78,9 @@ async function refineDarijaTranscript(client, settings, raw) {
 /**
  * @param {Buffer} audioBuffer
  * @param {string} [mimeType]
+ * @param {string} [organizationId] tenant whose catalogue is used as a vocabulary hint
  */
-export async function transcribeWhatsAppAudio(audioBuffer, mimeType = 'audio/ogg') {
+export async function transcribeWhatsAppAudio(audioBuffer, mimeType = 'audio/ogg', organizationId) {
   const settings = await getAiSettings();
   if (!settings.sttEnabled) {
     throw new Error('Speech-to-text is disabled in AI settings');
@@ -93,7 +96,7 @@ export async function transcribeWhatsAppAudio(audioBuffer, mimeType = 'audio/ogg
         : mimeType.includes('mp4') || mimeType.includes('m4a') || mimeType.includes('aac')
           ? 'm4a'
           : 'ogg';
-  const prompt = await buildTranscriptionPrompt();
+  const prompt = await buildTranscriptionPrompt(organizationId);
 
   let raw = '';
   let lastError = null;
@@ -119,7 +122,7 @@ export async function transcribeWhatsAppAudio(audioBuffer, mimeType = 'audio/ogg
     return '';
   }
 
-  const refined = await refineDarijaTranscript(client, settings, raw);
+  const refined = await refineDarijaTranscript(client, settings, raw, organizationId);
   if (refined !== raw) {
     console.log(`[voice] raw: ${raw}\n[voice] refined: ${refined}`);
   }

@@ -2,6 +2,7 @@ import express from 'express';
 import { authenticate, attachUser } from '../middleware/auth.js';
 import { requireAgent } from '../middleware/requireAgent.js';
 import { requirePermission } from '../middleware/requirePermission.js';
+import { meterAiMessage } from '../middleware/subscription.js';
 import { qualifyLead } from '../services/aiQualifier.js';
 import { getAiSettings } from '../services/aiSettings.js';
 import { transcribeWhatsAppAudio, synthesizeWhatsAppSpeech } from '../services/voiceAi.js';
@@ -40,7 +41,9 @@ function normalizeHistory(raw) {
     }));
 }
 
-router.post('/chat', async (req, res, next) => {
+// Every playground reply is a real (paid) AI message: it counts against the plan's monthly quota,
+// and is given back automatically when the request fails.
+router.post('/chat', meterAiMessage, async (req, res, next) => {
   try {
     const settings = await getAiSettings();
     if (!settings.openAiApiKey?.trim()) {
@@ -57,7 +60,7 @@ router.post('/chat', async (req, res, next) => {
       voiceNote = true;
       const mime = typeof req.body?.audioMime === 'string' ? req.body.audioMime : 'audio/webm';
       const buffer = Buffer.from(audioBase64, 'base64');
-      const transcript = await transcribeWhatsAppAudio(buffer, mime);
+      const transcript = await transcribeWhatsAppAudio(buffer, mime, req.user.organizationId);
       userText = transcript || '(تعذر فهم التسجيل الصوتي)';
     }
 
@@ -76,6 +79,7 @@ router.post('/chat', async (req, res, next) => {
     ];
 
     const qualification = await qualifyLead(conversationHistory, {
+      organizationId: req.user.organizationId,
       leadName: 'عميل تجريبي',
       leadPhone: '+212600000000',
     });

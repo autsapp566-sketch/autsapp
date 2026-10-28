@@ -61,10 +61,11 @@ router.post('/analyze-images', requirePermission('knowledgeEdit'), async (req, r
 
 router.get('/', requirePermission('knowledge', 'knowledgeEdit'), async (req, res, next) => {
   try {
+    const organizationId = req.user.organizationId;
     const filter = typeof req.query.type === 'string' ? req.query.type.toLowerCase() : 'all';
     const [items, allItems] = await Promise.all([
-      listKnowledgeItems(filter),
-      filter === 'all' ? Promise.resolve(null) : listKnowledgeItems('all'),
+      listKnowledgeItems(organizationId, filter),
+      filter === 'all' ? Promise.resolve(null) : listKnowledgeItems(organizationId, 'all'),
     ]);
     const forCounts = allItems ?? items;
     const products = forCounts.filter((i) => i.type === 'PRODUCT');
@@ -80,7 +81,7 @@ router.get('/', requirePermission('knowledge', 'knowledgeEdit'), async (req, res
 
 router.post('/', requirePermission('knowledgeEdit'), async (req, res, next) => {
   try {
-    const item = await createKnowledgeItem(req.body ?? {});
+    const item = await createKnowledgeItem(req.user.organizationId, req.body ?? {});
     res.status(201).json({ item });
   } catch (err) {
     next(err);
@@ -89,7 +90,7 @@ router.post('/', requirePermission('knowledgeEdit'), async (req, res, next) => {
 
 router.post('/ai-copilot', requirePermission('knowledgeEdit'), async (req, res, next) => {
   try {
-    const items = await generateKnowledgeWithCopilot(req.body?.brief);
+    const items = await generateKnowledgeWithCopilot(req.user.organizationId, req.body?.brief);
     res.status(201).json({ items, message: `تم توليد ${items.length} عنصر` });
   } catch (err) {
     next(err);
@@ -98,7 +99,7 @@ router.post('/ai-copilot', requirePermission('knowledgeEdit'), async (req, res, 
 
 router.patch('/:id', requirePermission('knowledgeEdit'), async (req, res, next) => {
   try {
-    const item = await updateKnowledgeItem(req.params.id, req.body ?? {});
+    const item = await updateKnowledgeItem(req.user.organizationId, req.params.id, req.body ?? {});
     res.json({ item });
   } catch (err) {
     next(err);
@@ -107,7 +108,7 @@ router.patch('/:id', requirePermission('knowledgeEdit'), async (req, res, next) 
 
 router.delete('/:id', requirePermission('knowledgeEdit'), async (req, res, next) => {
   try {
-    await deleteKnowledgeItem(req.params.id);
+    await deleteKnowledgeItem(req.user.organizationId, req.params.id);
     res.json({ ok: true });
   } catch (err) {
     next(err);

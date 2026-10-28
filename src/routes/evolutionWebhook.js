@@ -40,6 +40,7 @@ async function handleConnectionUpdate(update) {
   // alert for the cases that need a human (logged out / replaced by another session).
   if (update.state === 'close' && (update.statusReason === 401 || update.statusReason === 440)) {
     await createAdminAlert({
+      organizationId: row.organizationId,
       kind: 'WHATSAPP_DISCONNECTED',
       message: `📵 انقطع ربط رقم واتساب «${row.label || row.instanceName}» (تم تسجيل الخروج). أعد ربطه بمسح QR من صفحة «ربط أرقام واتساب».`,
     });

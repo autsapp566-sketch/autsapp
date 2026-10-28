@@ -34,9 +34,9 @@ function serializeMember(user, access, leadsCount) {
   };
 }
 
-async function loadMember(id) {
-  const user = await prisma.user.findUnique({
-    where: { id },
+async function loadMember(id, organizationId) {
+  const user = await prisma.user.findFirst({
+    where: { id, organizationId },
     select: { id: true, email: true, role: true, createdAt: true, _count: { select: { assignedLeads: true } } },
   });
   if (!user) {
@@ -45,15 +45,19 @@ async function loadMember(id) {
   return user;
 }
 
-router.get('/', async (_req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
     const [users, map, instances] = await Promise.all([
       prisma.user.findMany({
+        where: { organizationId: req.user.organizationId },
         orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
         select: { id: true, email: true, role: true, createdAt: true, _count: { select: { assignedLeads: true } } },
       }),
       loadAccessMap(),
-      prisma.whatsAppInstance.findMany({ orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] }),
+      prisma.whatsAppInstance.findMany({
+        where: { organizationId: req.user.organizationId },
+        orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+      }),
     ]);
     res.json({
       members: users.map((u) => serializeMember(u, map[u.id], u._count.assignedLeads)),
@@ -89,7 +93,14 @@ router.post('/', async (req, res, next) => {
     }
 
     const user = await prisma.user.create({
-      data: { email, password: await bcrypt.hash(password, 12), role: 'CONFIRMATION_AGENT' },
+      data: {
+        organizationId: req.user.organizationId,
+        email,
+        password: await bcrypt.hash(password, 12),
+        role: 'CONFIRMATION_AGENT',
+        // The admin hands these credentials to the agent directly — no self-service verification step.
+        emailVerifiedAt: new Date(),
+      },
       select: { id: true, email: true, role: true, createdAt: true },
     });
     const access = await setUserAccess(user.id, {
@@ -105,7 +116,7 @@ router.post('/', async (req, res, next) => {
 
 router.patch('/:id', async (req, res, next) => {
   try {
-    const user = await loadMember(req.params.id);
+    const user = await loadMember(req.params.id, req.user.organizationId);
     if (user.role === 'ADMIN') {
       throw httpError(400, 'لا يمكن تعديل صلاحيات المدير');
     }
@@ -135,7 +146,7 @@ router.patch('/:id', async (req, res, next) => {
 
 router.delete('/:id', async (req, res, next) => {
   try {
-    const user = await loadMember(req.params.id);
+    const user = await loadMember(req.params.id, req.user.organizationId);
     if (user.role === 'ADMIN' || user.id === req.user.id) {
       throw httpError(400, 'لا يمكن حذف حساب المدير');
     }

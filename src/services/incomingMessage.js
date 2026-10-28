@@ -2,6 +2,8 @@ import { describeCustomerProductImage } from './adContext.js';
 import { processIncomingWhatsAppMessage } from './whatsappLeadFlow.js';
 import { transcribeWhatsAppAudio } from './voiceAi.js';
 import { sendWhatsAppText } from './whatsappMessaging.js';
+import { resolveInstance } from './whatsappInstanceStore.js';
+import { checkAiMessageAllowance } from './billing/subscriptionService.js';
 
 const AUDIO_DOWNLOAD_MS = 20_000;
 const AUDIO_MAX_BYTES = 20 * 1024 * 1024;
@@ -39,7 +41,34 @@ export async function downloadAudioFromUrl(url, fallbackMime) {
  * @param {{ provider: string, fetchAudio?: () => Promise<{ buffer: Buffer, mimeType: string }>, fetchImage?: () => Promise<{ buffer: Buffer, mimeType: string }> }} options
  */
 export async function handleIncomingMessage(parsed, { provider, fetchAudio, fetchImage }) {
+  // The receiving number identifies the tenant. Unknown number => no owner, nothing is stored or answered.
+  const resolved = await resolveInstance(parsed.instanceId ?? provider);
+  if (!resolved) {
+    console.warn(`[webhook] message for unregistered instance "${parsed.instanceId ?? provider}" ignored`);
+    return { ok: true, provider, idMessage: parsed.idMessage, ignored: true, reason: 'UNREGISTERED_INSTANCE' };
+  }
+  const { organizationId } = resolved;
+
+  // Cheap read-only gate: a blocked tenant (inactive subscription / AI quota used up) must not cost us
+  // voice transcription or image analysis. The message is still stored; the authoritative atomic
+  // check happens in processIncomingWhatsAppMessage.
+  const allowance = await checkAiMessageAllowance(organizationId);
+  if (!allowance.allowed) {
+    const skipped = { ...parsed };
+    if (parsed.audio) {
+      skipped.audio = undefined;
+      skipped.text = skipped.text || '🎤 رسالة صوتية';
+    }
+    if (parsed.image) {
+      skipped.image = undefined;
+      skipped.text = skipped.text || '📷 صورة منتج';
+    }
+    parsed = skipped;
+  }
+
   const input = {
+    organizationId,
+    instanceDbId: resolved.id,
     remoteJid: parsed.remoteJid,
     phone: parsed.phone,
     text: parsed.text,
@@ -54,7 +83,7 @@ export async function handleIncomingMessage(parsed, { provider, fetchAudio, fetc
   if (parsed.audio) {
     try {
       const { buffer, mimeType } = await fetchAudio();
-      const transcript = await transcribeWhatsAppAudio(buffer, mimeType);
+      const transcript = await transcribeWhatsAppAudio(buffer, mimeType, organizationId);
       if (!transcript) {
         throw new Error('Empty transcription');
       }
@@ -64,6 +93,7 @@ export async function handleIncomingMessage(parsed, { provider, fetchAudio, fetc
       console.error('[webhook] voice note failed:', err.message);
       try {
         await sendWhatsAppText({
+          organizationId,
           remoteJid: parsed.remoteJid,
           phone: parsed.phone,
           text: AUDIO_FAILED_REPLY,
@@ -80,7 +110,7 @@ export async function handleIncomingMessage(parsed, { provider, fetchAudio, fetc
     try {
       const { buffer, mimeType } = await fetchImage();
       const dataUrl = `data:${mimeType || 'image/jpeg'};base64,${buffer.toString('base64')}`;
-      const described = await describeCustomerProductImage(dataUrl);
+      const described = await describeCustomerProductImage(dataUrl, organizationId);
       if (described) {
         input.imageContext = described.prompt;
         if (!input.text) input.text = described.note;
