@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start -p 3001",
     "typecheck": "tsc --noEmit",
-    "vercel-build": "npx prisma generate && next build"
+    "scripts": {
+  "vercel-build": "npx prisma generate --schema=../prisma/schema.prisma && next build"
+}
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
