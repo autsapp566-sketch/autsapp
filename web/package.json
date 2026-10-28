@@ -7,9 +7,11 @@
     "build": "next build",
     "start": "next start -p 3001",
     "typecheck": "tsc --noEmit",
-    "vercel-build": "prisma generate && next build"
+    "vercel-build": "npx prisma generate && next build"
   },
   "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "prisma": "^5.22.0",
     "next": "^15.5.0",
     "next-auth": "5.0.0-beta.32",
     "react": "^19.0.0",
