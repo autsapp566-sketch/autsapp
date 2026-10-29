@@ -74,6 +74,27 @@ function BillingLink() {
   );
 }
 
+/** Platform control lives on the Next.js /admin app, so these are full navigations, not SPA routes. */
+const platformLinks = [
+  { href: '/admin', label: 'نظرة عامة على المنصة', icon: '🛡' },
+  { href: '/admin/users', label: 'المستخدمون والاشتراكات', icon: '👤' },
+  { href: '/admin/system', label: 'صحة النظام', icon: '📡' },
+];
+
+function PlatformLink({ href, label, icon }) {
+  return (
+    <a
+      href={href}
+      className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-red-200/90 transition hover:bg-red-500/10 hover:text-red-100"
+    >
+      <span className="text-lg leading-none" aria-hidden>
+        {icon}
+      </span>
+      <span>{label}</span>
+    </a>
+  );
+}
+
 export default function DashboardLayout() {
   const { user, logout, impersonation } = useAuth();
   const navigate = useNavigate();
@@ -108,6 +129,16 @@ export default function DashboardLayout() {
             <NavItem key={item.to} {...item} />
           ))}
           {user?.role === 'ADMIN' ? <BillingLink /> : null}
+          {user?.platformRole === 'SUPER_ADMIN' && !impersonation ? (
+            <>
+              <p className="mb-1 mt-4 px-4 text-[10px] font-semibold tracking-wider text-red-300/80">
+                التحكم الشامل
+              </p>
+              {platformLinks.map((item) => (
+                <PlatformLink key={item.href} {...item} />
+              ))}
+            </>
+          ) : null}
         </nav>
         <div className="border-t border-slate-800 p-4 text-xs text-slate-500">
           OpenAI والصوت والبرومبت من إعدادات الحساب
@@ -126,6 +157,11 @@ export default function DashboardLayout() {
               <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium text-emerald-300">
                 {roleLabels[user?.role] ?? user?.role}
               </span>
+              {user?.platformRole === 'SUPER_ADMIN' && !impersonation ? (
+                <span className="rounded-full bg-red-500/15 px-3 py-1 text-xs font-medium text-red-300 ring-1 ring-red-500/30">
+                  سوبر أدمين
+                </span>
+              ) : null}
               <span className="hidden rounded-full bg-emerald-600/20 px-3 py-1 text-xs text-emerald-300 sm:inline">
                 البوت: تأهيل أوتوماتيكي
               </span>
@@ -146,6 +182,17 @@ export default function DashboardLayout() {
             </div>
           </div>
           <nav className="flex gap-2 overflow-x-auto border-t border-slate-800 px-4 py-2 lg:hidden">
+            {user?.platformRole === 'SUPER_ADMIN' && !impersonation
+              ? platformLinks.map((item) => (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    className="whitespace-nowrap rounded-lg bg-red-500/15 px-3 py-2 text-xs font-medium text-red-200"
+                  >
+                    {item.label}
+                  </a>
+                ))
+              : null}
             {[...visibleNavItems(user, mainNavItems), ...visibleNavItems(user, settingsNavItems)].map((item) => (
               <NavLink
                 key={item.to}
