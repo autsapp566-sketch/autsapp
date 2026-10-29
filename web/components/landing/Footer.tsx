@@ -10,6 +10,8 @@ export function Footer() {
           <a href="#features" className="hover:text-slate-300">المميزات</a>
           <a href="#pricing" className="hover:text-slate-300">الأسعار</a>
           <a href="#faq" className="hover:text-slate-300">الأسئلة الشائعة</a>
+          <Link href="/terms" className="hover:text-slate-300">شروط الاستخدام</Link>
+          <Link href="/privacy" className="hover:text-slate-300">سياسة الخصوصية</Link>
           <Link href="/login" className="hover:text-slate-300">تسجيل الدخول</Link>
         </nav>
         <p className="text-xs text-slate-600">© {new Date().getFullYear()} ECOM JOIN. جميع الحقوق محفوظة.</p>

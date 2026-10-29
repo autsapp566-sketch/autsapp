@@ -57,7 +57,17 @@ export function SignupForm({ planLabel }: { planLabel?: string }) {
       <div>
         <label className="flex items-start gap-3 text-sm leading-6 text-slate-400">
           <input type="checkbox" name="terms" className="mt-1 h-4 w-4 rounded border-slate-600 bg-slate-950 accent-cyan-500" aria-invalid={Boolean(state.fieldErrors?.terms)} />
-          <span>أوافق على شروط الاستخدام وسياسة الخصوصية.</span>
+          <span>
+            أوافق على{' '}
+            <Link href="/terms" className="font-medium text-cyan-400 hover:text-cyan-300" target="_blank" rel="noreferrer">
+              شروط الاستخدام
+            </Link>{' '}
+            و{' '}
+            <Link href="/privacy" className="font-medium text-cyan-400 hover:text-cyan-300" target="_blank" rel="noreferrer">
+              سياسة الخصوصية
+            </Link>
+            .
+          </span>
         </label>
         {state.fieldErrors?.terms ? <p className="mt-1.5 text-xs text-red-400">{state.fieldErrors.terms}</p> : null}
       </div>
