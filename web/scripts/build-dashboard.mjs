@@ -8,9 +8,12 @@ const clientRoot = path.resolve(webRoot, '..', 'client');
 const dist = path.join(clientRoot, 'dist');
 const target = path.join(webRoot, 'public', 'dashboard');
 
+// Vercel Root Directory is `web`, and files outside it are omitted unless the project
+// setting "Include source files outside of the Root Directory" is on. The site must still build.
 if (!fs.existsSync(path.join(clientRoot, 'package.json'))) {
-  console.error('client app not found at', clientRoot);
-  process.exit(1);
+  console.warn('Skipping dashboard embed: client app is not in this build (' + clientRoot + ').');
+  console.warn('On Vercel, enable "Include source files outside of the Root Directory", then redeploy.');
+  process.exit(0);
 }
 
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';

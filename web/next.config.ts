@@ -63,7 +63,7 @@ const nextConfig: NextConfig = {
           destination: `${dashboardOrigin}/dashboard/:path`,
         },
       );
-    } else {
+    } else if (fs.existsSync(embeddedIndex)) {
       // Same deployment: public/dashboard/index.html (Vite build, base /dashboard/).
       // Assets live at /dashboard/assets/* and are files, so they are not rewritten.
       beforeFiles.push(

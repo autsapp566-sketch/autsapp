@@ -7,7 +7,7 @@
     "build": "node scripts/build-dashboard.mjs && next build",
     "start": "next start -p 3001",
     "typecheck": "tsc --noEmit",
-    "vercel-build": "npx prisma generate --schema=../prisma/schema.prisma && node scripts/build-dashboard.mjs && next build"
+    "vercel-build": "node scripts/build-dashboard.mjs && next build"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
