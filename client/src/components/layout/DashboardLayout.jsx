@@ -75,23 +75,17 @@ function BillingLink() {
   );
 }
 
-/** Platform control lives on the Next.js /admin app, so these are full navigations, not SPA routes. */
-const platformLinks = [
-  { href: '/admin', label: 'نظرة عامة على المنصة', icon: '🛡' },
-  { href: '/admin/users', label: 'المستخدمون والاشتراكات', icon: '👤' },
-  { href: '/admin/system', label: 'صحة النظام', icon: '📡' },
-];
-
-function PlatformLink({ href, label, icon }) {
+/** Platform control lives on the Next.js /admin app, so this is a full navigation, not an SPA route. */
+function PlatformLink() {
   return (
     <a
-      href={href}
+      href="/admin"
       className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-red-200/90 transition hover:bg-red-500/10 hover:text-red-100"
     >
       <span className="text-lg leading-none" aria-hidden>
-        {icon}
+        🛡
       </span>
-      <span>{label}</span>
+      <span>لوحة التحكم</span>
     </a>
   );
 }
@@ -132,12 +126,7 @@ export default function DashboardLayout() {
           {user?.role === 'ADMIN' ? <BillingLink /> : null}
           {user?.platformRole === 'SUPER_ADMIN' && !impersonation ? (
             <>
-              <p className="mb-1 mt-4 px-4 text-[10px] font-semibold tracking-wider text-red-300/80">
-                التحكم الشامل
-              </p>
-              {platformLinks.map((item) => (
-                <PlatformLink key={item.href} {...item} />
-              ))}
+              <PlatformLink />
             </>
           ) : null}
         </nav>
@@ -183,17 +172,14 @@ export default function DashboardLayout() {
             </div>
           </div>
           <nav className="flex gap-2 overflow-x-auto border-t border-slate-800 px-4 py-2 lg:hidden">
-            {user?.platformRole === 'SUPER_ADMIN' && !impersonation
-              ? platformLinks.map((item) => (
-                  <a
-                    key={item.href}
-                    href={item.href}
-                    className="whitespace-nowrap rounded-lg bg-red-500/15 px-3 py-2 text-xs font-medium text-red-200"
-                  >
-                    {item.label}
-                  </a>
-                ))
-              : null}
+            {user?.platformRole === 'SUPER_ADMIN' && !impersonation ? (
+              <a
+                href="/admin"
+                className="whitespace-nowrap rounded-lg bg-red-500/15 px-3 py-2 text-xs font-medium text-red-200"
+              >
+                لوحة التحكم
+              </a>
+            ) : null}
             {[...visibleNavItems(user, mainNavItems), ...visibleNavItems(user, settingsNavItems)].map((item) => (
               <NavLink
                 key={item.to}
