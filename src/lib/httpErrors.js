@@ -39,6 +39,14 @@ export function prismaErrorInfo(err) {
     };
   }
 
+  if (/EMAXCONNSESSION|max clients reached|too many clients|remaining connection slots/i.test(msg)) {
+    return {
+      status: 503,
+      code: 'DATABASE_POOL_EXHAUSTED',
+      message: 'قاعدة البيانات مشغولة (الحد ديال الاتصالات). أعد تحميل الصفحة بعد ثواني.',
+    };
+  }
+
   if (msg.includes('Unknown argument')) {
     return {
       status: 503,
