@@ -4,10 +4,10 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "next dev -p 3001",
-    "build": "node scripts/build-dashboard.mjs && next build",
+    "build": "next build",
     "start": "next start -p 3001",
     "typecheck": "tsc --noEmit",
-    "vercel-build": "node scripts/build-dashboard.mjs && next build"
+    "vercel-build": "next build"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

@@ -1,18 +1,10 @@
-import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { NextConfig } from 'next';
 
-// Vercel runs `next build` directly. Bake the Vite app into public/dashboard so /dashboard is not a 404
-// when no separate DASHBOARD_ORIGIN is configured. Skipped in dev and when an external origin is set.
+// The dashboard is its own Vercel project. This app only proxies to it when DASHBOARD_ORIGIN is set.
+// Do not build ../client here: that step crashes the ulor deploy (client has no Prisma schema).
 const embeddedIndex = path.join(process.cwd(), 'public', 'dashboard', 'index.html');
-if (process.env.VERCEL && process.env.NODE_ENV === 'production' && !process.env.DASHBOARD_ORIGIN && !fs.existsSync(embeddedIndex)) {
-  const script = path.join(process.cwd(), 'scripts', 'build-dashboard.mjs');
-  const result = spawnSync(process.execPath, [script], { stdio: 'inherit' });
-  if (result.status !== 0) {
-    throw new Error('Failed to build the dashboard SPA for /dashboard');
-  }
-}
 
 // Dev defaults so `npm run dev` proxies the API and the Vite dashboard without extra env.
 // Production stays off until API_URL / DASHBOARD_ORIGIN are set explicitly.
