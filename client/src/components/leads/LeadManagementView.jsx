@@ -124,7 +124,7 @@ export default function LeadManagementView({ title, subtitle }) {
               onClick={() => toggleStatus(f.value)}
               className={[
                 'rounded-full px-4 py-1.5 text-xs font-medium transition',
-                active ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300 ring-1 ring-slate-700',
+                active ? 'bg-ember-500 text-white' : 'bg-slate-800 text-slate-300 ring-1 ring-slate-700',
               ].join(' ')}
             >
               {f.label}
@@ -183,7 +183,7 @@ export default function LeadManagementView({ title, subtitle }) {
                       type="button"
                       onClick={(e) => handleTakeOver(lead.id, e)}
                       disabled={takeoverId === lead.id || lead.status === 'HANDED_OFF'}
-                      className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+                      className="rounded-lg bg-ember-500 px-3 py-1.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {takeoverId === lead.id ? '...' : 'استلام / Take Over'}
                     </button>

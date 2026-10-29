@@ -178,7 +178,7 @@ export default function EvolutionSettingsView({ embedded = false }) {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+            className="rounded-xl bg-ember-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-ember-400 disabled:opacity-50"
           >
             {saving ? 'جاري الحفظ…' : 'حفظ'}
           </button>

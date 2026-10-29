@@ -214,7 +214,7 @@ export default function LeadChatPanel({ leadId, onClose, onLeadChange }) {
           <button
             type="submit"
             disabled={sending || !draft.trim()}
-            className="self-end rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            className="self-end rounded-xl bg-ember-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
             {sending ? '...' : 'إرسال'}
           </button>

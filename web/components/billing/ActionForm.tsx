@@ -34,7 +34,7 @@ export function ActionForm({
 
   const styles =
     variant === 'primary'
-      ? 'bg-cyan-600 text-white hover:bg-cyan-500'
+      ? 'bg-ember-500 text-white hover:bg-ember-400'
       : 'border border-slate-600 text-slate-100 hover:border-slate-400';
 
   return (

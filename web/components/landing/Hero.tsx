@@ -30,7 +30,7 @@ function ChatMockup() {
           <div className="me-auto max-w-[85%] rounded-2xl rounded-se-md bg-cyan-600 px-4 py-3 text-white">
             تم تسجيل طلبك ✅ سأحوّلك الآن لأحد موظفينا لتأكيد العنوان.
           </div>
-          <div className="mx-auto flex w-fit items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-4 py-1.5 text-xs font-medium text-cyan-300">
+          <div className="mx-auto flex w-fit items-center gap-2 rounded-full border border-ember-500/30 bg-ember-500/10 px-4 py-1.5 text-xs font-medium text-ember-400">
             <span aria-hidden>🔔</span> عميل مؤهَّل — تم التحويل لفريق المبيعات
           </div>
         </div>
@@ -42,7 +42,7 @@ function ChatMockup() {
 export function Hero() {
   return (
     <section className="relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[34rem] bg-[radial-gradient(60%_60%_at_50%_0%,rgba(47,224,222,0.18),transparent)]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[34rem] bg-[radial-gradient(42%_55%_at_18%_0%,rgba(46,212,222,0.16),transparent),radial-gradient(42%_55%_at_82%_0%,rgba(242,107,29,0.16),transparent)]" />
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(to_right,rgba(148,163,184,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.05)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]" />
 
       <div className="mx-auto grid max-w-6xl items-center gap-14 px-4 pb-20 pt-16 sm:px-6 sm:pt-24 lg:grid-cols-[1.1fr_1fr] lg:pb-28">
@@ -61,7 +61,7 @@ export function Hero() {
           </p>
 
           <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start">
-            <Link href="/signup" className="w-full rounded-xl bg-cyan-600 px-8 py-3.5 text-center text-base font-semibold text-white shadow-lg shadow-cyan-900/40 transition hover:bg-cyan-500 sm:w-auto">
+            <Link href="/signup" className="w-full rounded-xl bg-ember-500 px-8 py-3.5 text-center text-base font-semibold text-white shadow-lg shadow-ember-700/40 transition hover:bg-ember-400 sm:w-auto">
               ابدأ تجربتك المجانية
             </Link>
             <a href="#pricing" className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-8 py-3.5 text-center text-base font-semibold text-slate-200 transition hover:border-slate-600 hover:bg-slate-800 sm:w-auto">

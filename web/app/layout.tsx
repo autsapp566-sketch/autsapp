@@ -35,7 +35,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ar" dir="rtl" className={plex.variable}>
-      <body className="min-h-screen bg-slate-950 font-sans text-slate-100 antialiased selection:bg-cyan-400/30">
+        <body className="min-h-screen bg-slate-950 font-sans text-slate-100 antialiased selection:bg-ember-400/30">
         {children}
       </body>
     </html>

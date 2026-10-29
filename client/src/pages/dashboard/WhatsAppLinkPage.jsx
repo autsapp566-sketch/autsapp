@@ -105,7 +105,7 @@ function QrPanel({ activeQr, onRefresh, onClose }) {
           <button
             type="button"
             onClick={onRefresh}
-            className="flex-1 rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500"
+            className="flex-1 rounded-xl bg-ember-500 py-2.5 text-sm font-semibold text-white hover:bg-ember-400"
           >
             تحديث QR
           </button>
@@ -522,7 +522,7 @@ export default function WhatsAppLinkPage() {
                         <button
                           type="button"
                           onClick={() => refreshQr(inst.id)}
-                          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white"
+                          className="rounded-lg bg-ember-500 px-3 py-1.5 text-xs font-semibold text-white"
                         >
                           QR / إعادة ربط
                         </button>

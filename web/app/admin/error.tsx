@@ -8,7 +8,7 @@ export default function AdminError({ error, reset }: { error: Error & { digest?:
       <button
         type="button"
         onClick={reset}
-        className="rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-cyan-500"
+        className="rounded-xl bg-ember-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-ember-400"
       >
         إعادة المحاولة
       </button>

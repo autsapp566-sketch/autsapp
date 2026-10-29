@@ -418,7 +418,7 @@ function ConversationPanel({ leadId, instanceId = '', onLeadChange, onMobileBack
               type="button"
               disabled={takeoverBusy}
               onClick={() => handleTakeoverToggle(false)}
-              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg bg-ember-500 px-3 py-2 text-xs font-bold text-white shadow-lg shadow-ember-700/30 transition hover:bg-ember-400 disabled:opacity-50"
             >
               <span aria-hidden>▶</span>
               {takeoverBusy ? '...' : 'إعادة تفعيل الذكاء الاصطناعي (Resume AI)'}

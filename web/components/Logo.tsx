@@ -6,13 +6,14 @@ export function LogoMark({ className = 'h-9 w-9' }: { className?: string }) {
 }
 
 export function Wordmark({ tone = 'onDark' }: { tone?: 'onDark' | 'onLight' }) {
-  const ecom = tone === 'onLight' ? 'text-[#0B1C33]' : 'text-white';
+  const ecom = tone === 'onLight' ? 'text-[#D8560F]' : 'text-[#F26B1D]';
+  const join = tone === 'onLight' ? 'text-[#0E7490]' : 'text-[#2ED4DE]';
   return (
     <span
-      className={`text-[15px] font-extrabold leading-none tracking-[0.06em] ${ecom}`}
+      className="text-[15px] font-extrabold leading-none tracking-[0.06em]"
       style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
     >
-      ECOM <span className="text-[#2FE0DE]">JOIN</span>
+      <span className={ecom}>ECOM</span> <span className={join}>JOIN</span>
     </span>
   );
 }

@@ -70,7 +70,7 @@ export default function SoundSettingsPanel({ soundEnabled, toggleSound, prefs, s
                 onClick={() => setTab(ev.key)}
                 className={[
                   'flex-1 rounded-lg px-2 py-2 text-xs font-semibold transition',
-                  tab === ev.key ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700',
+                  tab === ev.key ? 'bg-ember-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700',
                 ].join(' ')}
               >
                 {ev.title}

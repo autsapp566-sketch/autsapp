@@ -44,7 +44,7 @@ function NavItem({ to, end, label, icon }) {
         [
           'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
           isActive
-            ? 'bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-500/30'
+            ? 'bg-ember-500/15 text-ember-400 ring-1 ring-ember-500/30'
             : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-100',
         ].join(' ')
       }
@@ -152,7 +152,7 @@ export default function DashboardLayout() {
                   سوبر أدمين
                 </span>
               ) : null}
-              <span className="hidden rounded-full bg-cyan-600/20 px-3 py-1 text-xs text-cyan-300 sm:inline">
+              <span className="hidden rounded-full bg-ember-500/15 px-3 py-1 text-xs text-ember-400 sm:inline">
                 البوت: تأهيل أوتوماتيكي
               </span>
               <SoundSettingsPanel
@@ -188,7 +188,7 @@ export default function DashboardLayout() {
                 className={({ isActive }) =>
                   [
                     'whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium',
-                    isActive ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-300',
+                    isActive ? 'bg-ember-500 text-white' : 'bg-slate-800 text-slate-300',
                   ].join(' ')
                 }
               >

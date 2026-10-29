@@ -586,7 +586,7 @@ export default function KnowledgePage() {
       {toast ? (
         <div
           role="status"
-          className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm text-white shadow-lg"
+          className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-ember-500 px-5 py-2.5 text-sm text-white shadow-lg"
         >
           {toast}
         </div>
@@ -611,14 +611,14 @@ export default function KnowledgePage() {
             <button
               type="button"
               onClick={openFaqModal}
-              className="inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-cyan-500"
+              className="inline-flex items-center gap-2 rounded-xl bg-ember-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-ember-400"
             >
               + إضافة سؤال (FAQ)
             </button>
             <button
               type="button"
               onClick={openProductModal}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500"
+              className="inline-flex items-center gap-2 rounded-xl bg-ember-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-ember-400"
             >
               📦 إضافة منتج / خدمة
             </button>
@@ -730,7 +730,7 @@ export default function KnowledgePage() {
             <button
               type="submit"
               disabled={saving || uploadingImages || analyzingImages}
-              className="w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+              className="w-full rounded-xl bg-ember-500 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
             >
               {saving ? 'جاري الحفظ…' : 'حفظ'}
             </button>
@@ -763,7 +763,7 @@ export default function KnowledgePage() {
             <button
               type="submit"
               disabled={saving}
-              className="w-full rounded-xl bg-cyan-600 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+              className="w-full rounded-xl bg-ember-500 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
             >
               {saving ? 'جاري الحفظ…' : 'حفظ'}
             </button>

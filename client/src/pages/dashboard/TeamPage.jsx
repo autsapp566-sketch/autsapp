@@ -291,7 +291,7 @@ function MemberCard({ member, catalog, presets, instances = [], onSaved, onDelet
                   type="button"
                   onClick={save}
                   disabled={!dirty || saving}
-                  className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-500 disabled:opacity-40"
+                  className="rounded-xl bg-ember-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-ember-400 disabled:opacity-40"
                 >
                   {saving ? '...' : 'حفظ الصلاحيات'}
                 </button>
@@ -381,7 +381,7 @@ function NewMemberForm({ catalog, presets, instances = [], onCreated, onCancel, 
         <button
           type="submit"
           disabled={saving}
-          className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-500 disabled:opacity-40"
+          className="rounded-xl bg-ember-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-ember-400 disabled:opacity-40"
         >
           {saving ? '...' : 'إنشاء الحساب'}
         </button>
@@ -448,7 +448,7 @@ export default function TeamPage() {
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-500"
+            className="rounded-xl bg-ember-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-ember-400"
           >
             ➕ إضافة وكيل
           </button>

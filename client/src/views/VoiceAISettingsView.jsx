@@ -148,7 +148,7 @@ export default function VoiceAISettingsView({ embedded = false }) {
       {toast ? (
         <div
           role="status"
-          className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl border border-emerald-500/40 bg-emerald-600 px-5 py-3 text-sm font-medium text-white shadow-lg"
+          className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl border border-ember-500/40 bg-ember-500 px-5 py-3 text-sm font-medium text-white shadow-lg"
         >
           {toast}
         </div>

@@ -78,7 +78,7 @@ function ImpersonateButton({ disabled }: { disabled: boolean }) {
 
 function Submit({ label, tone }: { label: string; tone: 'danger' | 'primary' }) {
   const { pending } = useFormStatus();
-  const cls = tone === 'danger' ? 'bg-red-600 hover:bg-red-500' : 'bg-cyan-600 hover:bg-cyan-500';
+  const cls = tone === 'danger' ? 'bg-red-600 hover:bg-red-500' : 'bg-ember-500 hover:bg-ember-400';
   return (
     <button
       type="submit"

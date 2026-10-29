@@ -29,7 +29,7 @@ export function Pricing() {
                   onClick={() => setInterval(value)}
                   className={[
                     'flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition',
-                    active ? 'bg-cyan-600 text-white shadow' : 'text-slate-400 hover:text-white',
+                    active ? 'bg-ember-500 text-white shadow' : 'text-slate-400 hover:text-white',
                   ].join(' ')}
                 >
                   {value === 'monthly' ? 'شهري' : 'سنوي'}
@@ -53,12 +53,12 @@ export function Pricing() {
                 className={[
                   'relative flex flex-col rounded-3xl border p-8',
                   plan.highlight
-                    ? 'border-cyan-500/60 bg-slate-900 shadow-2xl shadow-cyan-950/40 lg:-my-3 lg:py-11'
+                    ? 'border-ember-500/60 bg-slate-900 shadow-2xl shadow-ember-700/30 lg:-my-3 lg:py-11'
                     : 'border-slate-800 bg-slate-900/60',
                 ].join(' ')}
               >
                 {plan.highlight ? (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-cyan-600 px-4 py-1 text-xs font-bold text-white">
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-ember-500 px-4 py-1 text-xs font-bold text-white">
                     الأكثر شعبية
                   </span>
                 ) : null}
@@ -96,7 +96,7 @@ export function Pricing() {
                   className={[
                     'mt-6 block rounded-xl py-3 text-center text-sm font-semibold transition',
                     plan.highlight
-                      ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-900/40 hover:bg-cyan-500'
+                      ? 'bg-ember-500 text-white shadow-lg shadow-ember-700/40 hover:bg-ember-400'
                       : 'border border-slate-700 bg-slate-800/60 text-slate-100 hover:border-slate-600 hover:bg-slate-800',
                   ].join(' ')}
                 >

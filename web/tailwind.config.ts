@@ -1,6 +1,6 @@
 import type { Config } from 'tailwindcss';
 
-// ECOM JOIN: navy surfaces, cyan brand. Mirrored in client/tailwind.config.js.
+// ECOM JOIN: navy surfaces, cyan + orange from the mark. Mirrored in client/tailwind.config.js.
 const config: Config = {
   content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],
   theme: {
@@ -12,10 +12,16 @@ const config: Config = {
         brand: {
           50: '#ecfeff',
           100: '#cffafe',
-          500: '#2FE0DE',
+          500: '#2ED4DE',
           600: '#14b8c7',
           700: '#0e8f9c',
           900: '#0B1C33',
+        },
+        ember: {
+          400: '#FF8A3D',
+          500: '#F26B1D',
+          600: '#D8560F',
+          700: '#B4430C',
         },
       },
       keyframes: {

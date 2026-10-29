@@ -160,7 +160,7 @@ export default function BotPlaygroundPage() {
           <h2 className="text-2xl font-bold text-white">اختبار البوت والصوت</h2>
           <p className="mt-1 text-sm text-slate-400">تجربة الدردشة والصوتيات قبل الإطلاق</p>
         </div>
-        <span className="rounded-full bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-emerald-900/30">
+        <span className="rounded-full bg-ember-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-ember-700/30">
           البوت: شغال أوتوماتيكياً
         </span>
       </div>

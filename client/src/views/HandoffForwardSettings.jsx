@@ -181,7 +181,7 @@ export default function HandoffForwardSettings() {
               type="button"
               onClick={handleSave}
               disabled={saving || testing}
-              className="rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+              className="rounded-xl bg-ember-500 px-5 py-2 text-sm font-semibold text-white hover:bg-ember-400 disabled:opacity-50"
             >
               {saving ? 'جاري الحفظ…' : 'حفظ'}
             </button>

@@ -74,7 +74,7 @@ function Flow({ steps }) {
           {i < steps.length - 1 ? (
             <span className="absolute start-[15px] top-8 h-[calc(100%-1.5rem)] w-px bg-slate-700" aria-hidden />
           ) : null}
-          <span className="z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">
+          <span className="z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ember-500 text-xs font-bold text-white">
             {i + 1}
           </span>
           <div className="min-w-0 flex-1 rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3">

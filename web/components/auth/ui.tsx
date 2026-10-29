@@ -7,7 +7,7 @@ import { Logo } from '@/components/Logo';
 export function AuthShell({ title, subtitle, children, footer }: { title: string; subtitle?: string; children: ReactNode; footer?: ReactNode }) {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-12">
-      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-96 bg-[radial-gradient(50%_60%_at_50%_0%,rgba(47,224,222,0.16),transparent)]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-96 bg-[radial-gradient(40%_60%_at_20%_0%,rgba(46,212,222,0.16),transparent),radial-gradient(40%_60%_at_80%_0%,rgba(242,107,29,0.14),transparent)]" />
       <Logo className="mb-8" />
       <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900/80 p-8 shadow-2xl shadow-black/40 backdrop-blur">
         <div className="mb-7 text-center">
@@ -108,7 +108,7 @@ export function SubmitButton({ children, pendingLabel }: { children: ReactNode; 
     <button
       type="submit"
       disabled={pending}
-      className="w-full rounded-xl bg-cyan-600 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-900/30 transition hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-60"
+      className="w-full rounded-xl bg-ember-500 py-3 text-sm font-semibold text-white shadow-lg shadow-ember-700/30 transition hover:bg-ember-400 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {pending ? pendingLabel : children}
     </button>
