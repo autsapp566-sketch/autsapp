@@ -12,7 +12,7 @@ export function Footer() {
           <a href="#faq" className="hover:text-slate-300">الأسئلة الشائعة</a>
           <Link href="/login" className="hover:text-slate-300">تسجيل الدخول</Link>
         </nav>
-        <p className="text-xs text-slate-600">© {new Date().getFullYear()} WhatsApp AI Agent. جميع الحقوق محفوظة.</p>
+        <p className="text-xs text-slate-600">© {new Date().getFullYear()} ECOM JOIN. جميع الحقوق محفوظة.</p>
       </div>
     </footer>
   );

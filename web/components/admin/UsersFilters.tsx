@@ -21,13 +21,13 @@ export function UsersFilters({ search, status }: { search: string; status: strin
         placeholder="بحث بالبريد أو اسم المنظمة…"
         maxLength={100}
         aria-label="بحث"
-        className="min-w-[14rem] flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/30"
+        className="min-w-[14rem] flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-cyan-500/60 focus:ring-2 focus:ring-cyan-500/30"
       />
       <select
         name="status"
         defaultValue={status}
         aria-label="حالة الاشتراك"
-        className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-500/60"
+        className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-500/60"
       >
         {STATUSES.map((s) => (
           <option key={s.value} value={s.value}>
@@ -35,7 +35,7 @@ export function UsersFilters({ search, status }: { search: string; status: strin
           </option>
         ))}
       </select>
-      <button type="submit" className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500">
+      <button type="submit" className="rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-cyan-500">
         تطبيق
       </button>
       {dirty ? (

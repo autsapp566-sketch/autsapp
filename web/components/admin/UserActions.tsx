@@ -38,7 +38,7 @@ export function UserActions({ user, isSelf }: { user: AdminUser; isSelf: boolean
       {blocked ? (
         <button
           type="button"
-          className={`${BTN} border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10`}
+          className={`${BTN} border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/10`}
           onClick={() => setDialog('unban')}
         >
           رفع التعطيل
@@ -78,7 +78,7 @@ function ImpersonateButton({ disabled }: { disabled: boolean }) {
 
 function Submit({ label, tone }: { label: string; tone: 'danger' | 'primary' }) {
   const { pending } = useFormStatus();
-  const cls = tone === 'danger' ? 'bg-red-600 hover:bg-red-500' : 'bg-emerald-600 hover:bg-emerald-500';
+  const cls = tone === 'danger' ? 'bg-red-600 hover:bg-red-500' : 'bg-cyan-600 hover:bg-cyan-500';
   return (
     <button
       type="submit"
@@ -108,7 +108,7 @@ function FormError({ message }: { message?: string }) {
 }
 
 const INPUT =
-  'w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/30';
+  'w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-500/60 focus:ring-2 focus:ring-cyan-500/30';
 const LABEL = 'mb-1.5 block text-xs font-medium text-slate-400';
 
 /** Closes the dialog once an action succeeds without warnings. */
@@ -260,11 +260,11 @@ function PlanDialog({ user, onClose }: { user: AdminUser; onClose: () => void })
           <legend className={LABEL}>مدة الاشتراك</legend>
           <div className="space-y-2 text-sm text-slate-300">
             <label className="flex items-center gap-2">
-              <input type="radio" name="period" value="keep" checked={period === 'keep'} onChange={() => setPeriod('keep')} className="accent-emerald-500" />
+              <input type="radio" name="period" value="keep" checked={period === 'keep'} onChange={() => setPeriod('keep')} className="accent-cyan-500" />
               إبقاء الفترة الحالية
             </label>
             <label className="flex items-center gap-2">
-              <input type="radio" name="period" value="days" checked={period === 'days'} onChange={() => setPeriod('days')} className="accent-emerald-500" />
+              <input type="radio" name="period" value="days" checked={period === 'days'} onChange={() => setPeriod('days')} className="accent-cyan-500" />
               فترة جديدة لمدة
               <input
                 type="number"
@@ -280,7 +280,7 @@ function PlanDialog({ user, onClose }: { user: AdminUser; onClose: () => void })
               يوم
             </label>
             <label className="flex items-center gap-2">
-              <input type="radio" name="period" value="unlimited" checked={period === 'unlimited'} onChange={() => setPeriod('unlimited')} className="accent-emerald-500" />
+              <input type="radio" name="period" value="unlimited" checked={period === 'unlimited'} onChange={() => setPeriod('unlimited')} className="accent-cyan-500" />
               بدون تاريخ انتهاء
             </label>
           </div>

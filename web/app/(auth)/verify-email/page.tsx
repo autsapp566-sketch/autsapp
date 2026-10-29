@@ -17,7 +17,7 @@ export default async function VerifyEmailPage({ searchParams }: { searchParams: 
       ) : (
         <div className="space-y-4">
           <Alert tone="error">رابط التأكيد غير مكتمل.</Alert>
-          <Link href="/login" className="block text-center text-sm font-semibold text-emerald-400 hover:text-emerald-300">
+          <Link href="/login" className="block text-center text-sm font-semibold text-cyan-400 hover:text-cyan-300">
             تسجيل الدخول
           </Link>
         </div>

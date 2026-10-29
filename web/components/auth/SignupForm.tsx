@@ -11,7 +11,7 @@ function CheckInbox({ email }: { email: string }) {
   const [state, action] = useActionState(resendVerificationAction, initial);
   return (
     <div className="space-y-5 text-center">
-      <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 text-2xl ring-1 ring-emerald-500/30" aria-hidden>
+      <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-cyan-500/15 text-2xl ring-1 ring-cyan-500/30" aria-hidden>
         ✉️
       </span>
       <div>
@@ -24,7 +24,7 @@ function CheckInbox({ email }: { email: string }) {
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
       <form action={action}>
         <input type="hidden" name="email" value={email} />
-        <button type="submit" className="text-sm font-medium text-emerald-400 hover:text-emerald-300">
+        <button type="submit" className="text-sm font-medium text-cyan-400 hover:text-cyan-300">
           لم تصلك الرسالة؟ أعد الإرسال
         </button>
       </form>
@@ -56,7 +56,7 @@ export function SignupForm({ planLabel }: { planLabel?: string }) {
 
       <div>
         <label className="flex items-start gap-3 text-sm leading-6 text-slate-400">
-          <input type="checkbox" name="terms" className="mt-1 h-4 w-4 rounded border-slate-600 bg-slate-950 accent-emerald-500" aria-invalid={Boolean(state.fieldErrors?.terms)} />
+          <input type="checkbox" name="terms" className="mt-1 h-4 w-4 rounded border-slate-600 bg-slate-950 accent-cyan-500" aria-invalid={Boolean(state.fieldErrors?.terms)} />
           <span>أوافق على شروط الاستخدام وسياسة الخصوصية.</span>
         </label>
         {state.fieldErrors?.terms ? <p className="mt-1.5 text-xs text-red-400">{state.fieldErrors.terms}</p> : null}

@@ -13,7 +13,7 @@ function ResendVerification({ email }: { email: string }) {
     <form action={action} className="mt-2">
       <input type="hidden" name="email" value={email} />
       {state.success ? (
-        <p className="text-emerald-300">{state.message}</p>
+        <p className="text-cyan-300">{state.message}</p>
       ) : (
         <>
           <button type="submit" className="font-semibold text-red-200 underline underline-offset-4 hover:text-white">
@@ -53,7 +53,7 @@ export function LoginForm({ callbackUrl, notice }: { callbackUrl: string; notice
           placeholder="••••••••"
           error={state.fieldErrors?.password}
           labelAside={
-            <Link href="/forgot-password" className="text-xs font-medium text-emerald-400 hover:text-emerald-300">
+            <Link href="/forgot-password" className="text-xs font-medium text-cyan-400 hover:text-cyan-300">
               نسيت كلمة المرور؟
             </Link>
           }

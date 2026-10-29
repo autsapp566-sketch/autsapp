@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 export type Tone = 'emerald' | 'amber' | 'red' | 'sky' | 'slate' | 'violet';
 
 const BADGE: Record<Tone, string> = {
-  emerald: 'bg-emerald-500/10 text-emerald-300 ring-emerald-500/30',
+  emerald: 'bg-cyan-500/10 text-cyan-300 ring-cyan-500/30',
   amber: 'bg-amber-500/10 text-amber-300 ring-amber-500/30',
   red: 'bg-red-500/10 text-red-300 ring-red-500/30',
   sky: 'bg-sky-500/10 text-sky-300 ring-sky-500/30',
@@ -12,7 +12,7 @@ const BADGE: Record<Tone, string> = {
 };
 
 const DOT: Record<Tone, string> = {
-  emerald: 'bg-emerald-400',
+  emerald: 'bg-cyan-400',
   amber: 'bg-amber-400',
   red: 'bg-red-400',
   sky: 'bg-sky-400',

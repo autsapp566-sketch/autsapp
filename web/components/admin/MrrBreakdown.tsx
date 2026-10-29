@@ -22,7 +22,7 @@ export function MrrBreakdown({ mrr }: { mrr: Overview['mrr'] }) {
                 </span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-slate-800">
-                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.max(4, (p.mrrCents / max) * 100)}%` }} />
+                <div className="h-full rounded-full bg-cyan-500" style={{ width: `${Math.max(4, (p.mrrCents / max) * 100)}%` }} />
               </div>
             </li>
           ))}

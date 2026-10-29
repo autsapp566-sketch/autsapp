@@ -14,8 +14,8 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3001';
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'أتمتة محادثات الواتساب بالذكاء الاصطناعي | WhatsApp AI Agent',
-    template: '%s | WhatsApp AI Agent',
+    default: 'أتمتة محادثات الواتساب بالذكاء الاصطناعي | ECOM JOIN',
+    template: '%s | ECOM JOIN',
   },
   description:
     'بوت ذكي يرد على عملائك في واتساب على مدار الساعة، يؤهّل العملاء المحتملين ويحوّل المحادثة لفريقك في اللحظة المناسبة. ابدأ تجربتك المجانية.',
@@ -35,7 +35,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ar" dir="rtl" className={plex.variable}>
-      <body className="min-h-screen bg-slate-950 font-sans text-slate-100 antialiased selection:bg-emerald-500/30">
+      <body className="min-h-screen bg-slate-950 font-sans text-slate-100 antialiased selection:bg-cyan-400/30">
         {children}
       </body>
     </html>

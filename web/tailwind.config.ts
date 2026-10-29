@@ -1,6 +1,6 @@
 import type { Config } from 'tailwindcss';
 
-// Same palette as the dashboard (client/tailwind.config.js): slate-950/900 surfaces, emerald "brand".
+// ECOM JOIN: navy surfaces, cyan brand. Mirrored in client/tailwind.config.js.
 const config: Config = {
   content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],
   theme: {
@@ -10,12 +10,12 @@ const config: Config = {
       },
       colors: {
         brand: {
-          50: '#ecfdf5',
-          100: '#d1fae5',
-          500: '#10b981',
-          600: '#059669',
-          700: '#047857',
-          900: '#064e3b',
+          50: '#ecfeff',
+          100: '#cffafe',
+          500: '#2FE0DE',
+          600: '#14b8c7',
+          700: '#0e8f9c',
+          900: '#0B1C33',
         },
       },
       keyframes: {

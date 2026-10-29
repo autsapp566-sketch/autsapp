@@ -43,7 +43,7 @@ const BLOCK_REASONS: Record<string, string> = {
 };
 
 const STATUS_BADGE = {
-  ACTIVE: { label: 'نشط', cls: 'bg-emerald-500/10 text-emerald-300 ring-emerald-500/30' },
+  ACTIVE: { label: 'نشط', cls: 'bg-cyan-500/10 text-cyan-300 ring-cyan-500/30' },
   PAST_DUE: { label: 'متأخر الدفع', cls: 'bg-amber-500/10 text-amber-300 ring-amber-500/30' },
   CANCELED: { label: 'ملغى', cls: 'bg-red-500/10 text-red-300 ring-red-500/30' },
 } as const;

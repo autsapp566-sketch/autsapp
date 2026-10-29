@@ -33,7 +33,7 @@ export default async function AdminOverviewPage() {
         aside={
           <Link
             href="/admin/users"
-            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500"
+            className="rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
           >
             إدارة المستخدمين
           </Link>

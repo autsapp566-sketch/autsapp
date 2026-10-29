@@ -22,7 +22,7 @@ export function AdminNav() {
             aria-current={active ? 'page' : undefined}
             className={[
               'whitespace-nowrap rounded-lg px-3.5 py-2 text-sm font-medium transition',
-              active ? 'bg-emerald-500/15 text-emerald-300' : 'text-slate-400 hover:bg-slate-800 hover:text-white',
+              active ? 'bg-cyan-500/15 text-cyan-300' : 'text-slate-400 hover:bg-slate-800 hover:text-white',
             ].join(' ')}
           >
             {item.label}

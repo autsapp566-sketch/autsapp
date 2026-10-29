@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { BrandLockup } from '../components/LogoMark.jsx';
 
 function validate(email, password) {
   const errors = {};
@@ -62,8 +63,8 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-brand-900 px-4 py-12" dir="rtl">
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white p-8 shadow-2xl">
         <div className="mb-8 text-center">
-          <p className="text-sm font-semibold text-brand-600">WhatsApp AI Handoff</p>
-          <h1 className="mt-2 text-2xl font-bold text-slate-900">تسجيل الدخول</h1>
+          <BrandLockup tone="onLight" className="justify-center" />
+          <h1 className="mt-4 text-2xl font-bold text-slate-900">تسجيل الدخول</h1>
           <p className="mt-2 text-sm text-slate-500">للوكلاء ومديري النظام فقط</p>
         </div>
 

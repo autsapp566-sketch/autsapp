@@ -17,7 +17,7 @@ export default async function ResetPasswordPage({ searchParams }: { searchParams
       ) : (
         <div className="space-y-4">
           <Alert tone="error">رابط إعادة التعيين غير مكتمل.</Alert>
-          <Link href="/forgot-password" className="block text-center text-sm font-semibold text-emerald-400 hover:text-emerald-300">
+          <Link href="/forgot-password" className="block text-center text-sm font-semibold text-cyan-400 hover:text-cyan-300">
             اطلب رابطًا جديدًا
           </Link>
         </div>

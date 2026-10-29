@@ -18,7 +18,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
       footer={
         <>
           ليس لديك حساب؟{' '}
-          <Link href="/signup" className="font-semibold text-emerald-400 hover:text-emerald-300">
+          <Link href="/signup" className="font-semibold text-cyan-400 hover:text-cyan-300">
             أنشئ حسابًا مجانيًا
           </Link>
         </>

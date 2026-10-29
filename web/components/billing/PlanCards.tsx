@@ -26,12 +26,12 @@ export function PlanCards({
         return (
           <div
             key={plan.id}
-            className={`flex flex-col rounded-2xl border p-6 ${highlight ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-slate-800 bg-slate-900/70'}`}
+            className={`flex flex-col rounded-2xl border p-6 ${highlight ? 'border-cyan-500/50 bg-cyan-500/5' : 'border-slate-800 bg-slate-900/70'}`}
           >
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-lg font-bold text-white">{plan.name}</h3>
               {highlight ? (
-                <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-medium text-emerald-300 ring-1 ring-inset ring-emerald-500/30">
+                <span className="rounded-full bg-cyan-500/15 px-2.5 py-0.5 text-xs font-medium text-cyan-300 ring-1 ring-inset ring-cyan-500/30">
                   باقتك الحالية
                 </span>
               ) : null}

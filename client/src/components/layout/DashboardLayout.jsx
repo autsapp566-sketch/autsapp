@@ -6,6 +6,7 @@ import { useAdminAlerts } from '../../hooks/useAdminAlerts.js';
 import SoundSettingsPanel from './SoundSettingsPanel.jsx';
 import ImpersonationBanner from './ImpersonationBanner.jsx';
 import { canOpenPage, PAGE_ACCESS } from '../../lib/access.js';
+import { BrandLockup } from '../LogoMark.jsx';
 
 const mainNavItems = [
   { to: '/dashboard', end: true, label: 'الرئيسية والتحليلات', icon: '▣' },
@@ -43,7 +44,7 @@ function NavItem({ to, end, label, icon }) {
         [
           'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
           isActive
-            ? 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30'
+            ? 'bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-500/30'
             : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-100',
         ].join(' ')
       }
@@ -114,8 +115,8 @@ export default function DashboardLayout() {
     <div className="flex min-h-screen bg-slate-950 text-slate-100" dir="rtl">
       <aside className="hidden w-72 shrink-0 border-s border-slate-800 bg-slate-900/90 lg:flex lg:flex-col">
         <div className="border-b border-slate-800 px-6 py-5">
-          <p className="text-xs font-semibold text-emerald-400">WhatsApp AI Agent</p>
-          <h1 className="mt-1 text-lg font-bold text-white">لوحة التأهيل والتسليم</h1>
+          <BrandLockup />
+          <h1 className="mt-3 text-lg font-bold text-white">لوحة التأهيل والتسليم</h1>
           <p className="mt-1 text-[11px] text-slate-500">الإعدادات من لوحة التحكم</p>
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-4">
@@ -154,7 +155,7 @@ export default function DashboardLayout() {
               <p className="font-semibold text-white">{user?.email}</p>
             </div>
             <div className="flex items-center gap-3">
-              <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium text-emerald-300">
+              <span className="rounded-full bg-cyan-500/15 px-3 py-1 text-xs font-medium text-cyan-300">
                 {roleLabels[user?.role] ?? user?.role}
               </span>
               {user?.platformRole === 'SUPER_ADMIN' && !impersonation ? (
@@ -162,7 +163,7 @@ export default function DashboardLayout() {
                   سوبر أدمين
                 </span>
               ) : null}
-              <span className="hidden rounded-full bg-emerald-600/20 px-3 py-1 text-xs text-emerald-300 sm:inline">
+              <span className="hidden rounded-full bg-cyan-600/20 px-3 py-1 text-xs text-cyan-300 sm:inline">
                 البوت: تأهيل أوتوماتيكي
               </span>
               <SoundSettingsPanel
@@ -201,7 +202,7 @@ export default function DashboardLayout() {
                 className={({ isActive }) =>
                   [
                     'whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium',
-                    isActive ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300',
+                    isActive ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-300',
                   ].join(' ')
                 }
               >
@@ -271,18 +272,18 @@ export default function DashboardLayout() {
           {alert ? (
             <div
               role="status"
-              className="mb-4 flex flex-wrap items-start justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100"
+              className="mb-4 flex flex-wrap items-start justify-between gap-3 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100"
             >
               <div>
                 <p className="font-semibold">{alert.message}</p>
-                <p className="mt-1 text-emerald-200/90">
+                <p className="mt-1 text-cyan-200/90">
                   {alert.lead?.name ?? alert.lead?.phone} — {alert.lead?.summary}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={dismissAlert}
-                className="rounded-lg bg-slate-800 px-3 py-1 text-xs font-medium text-emerald-300"
+                className="rounded-lg bg-slate-800 px-3 py-1 text-xs font-medium text-cyan-300"
               >
                 إغلاق
               </button>

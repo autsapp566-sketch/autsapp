@@ -22,7 +22,7 @@ export function Testimonials() {
     <section id="testimonials" className="border-t border-slate-800/80 bg-slate-950 py-20 sm:py-28">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-sm font-semibold text-emerald-400">آراء العملاء</p>
+          <p className="text-sm font-semibold text-cyan-400">آراء العملاء</p>
           <h2 className="mt-3 text-3xl font-bold text-white sm:text-4xl">فرق تثق بنا في محادثات عملائها</h2>
         </div>
 
@@ -40,7 +40,7 @@ export function Testimonials() {
                 <blockquote className="mt-4 text-sm leading-7 text-slate-300">“{t.quote}”</blockquote>
               </div>
               <figcaption className="mt-6 flex items-center gap-3 border-t border-slate-800 pt-5">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15 text-sm font-bold text-emerald-300 ring-1 ring-emerald-500/30">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-500/15 text-sm font-bold text-cyan-300 ring-1 ring-cyan-500/30">
                   {t.name.charAt(0)}
                 </span>
                 <div>

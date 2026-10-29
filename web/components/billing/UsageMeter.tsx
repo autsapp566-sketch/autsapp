@@ -17,7 +17,7 @@ export function UsageMeter({
   const unlimited = limit === null;
   const ratio = unlimited || limit === 0 ? 0 : Math.min(1, used / limit);
   const over = !unlimited && used >= limit;
-  const tone = over ? 'bg-red-500' : ratio >= 0.8 ? 'bg-amber-400' : 'bg-emerald-500';
+  const tone = over ? 'bg-red-500' : ratio >= 0.8 ? 'bg-amber-400' : 'bg-cyan-500';
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">

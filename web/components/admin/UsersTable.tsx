@@ -11,7 +11,7 @@ function Instances({ user, evolutionAvailable }: { user: AdminUser; evolutionAva
     <span className="text-slate-200" dir="ltr">
       {evolutionAvailable && connected !== null ? (
         <>
-          <span className={connected > 0 ? 'text-emerald-400' : 'text-slate-400'}>{connected}</span>
+          <span className={connected > 0 ? 'text-cyan-400' : 'text-slate-400'}>{connected}</span>
           <span className="text-slate-600"> / </span>
           {total}
         </>

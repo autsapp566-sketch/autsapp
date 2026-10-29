@@ -18,7 +18,7 @@ export function VerifyEmailPanel({ token }: { token: string }) {
     return (
       <div className="space-y-5 text-center">
         <Alert tone="success">تم تأكيد بريدك الإلكتروني وتفعيل حسابك.</Alert>
-        <Link href="/login?verified=1" className="block w-full rounded-xl bg-emerald-600 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500">
+        <Link href="/login?verified=1" className="block w-full rounded-xl bg-cyan-600 py-3 text-sm font-semibold text-white transition hover:bg-cyan-500">
           تسجيل الدخول
         </Link>
       </div>

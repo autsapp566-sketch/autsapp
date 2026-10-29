@@ -37,7 +37,7 @@ export function Faq() {
     <section id="faq" className="border-t border-slate-800/80 bg-slate-900/30 py-20 sm:py-28">
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <div className="text-center">
-          <p className="text-sm font-semibold text-emerald-400">الأسئلة الشائعة</p>
+          <p className="text-sm font-semibold text-cyan-400">الأسئلة الشائعة</p>
           <h2 className="mt-3 text-3xl font-bold text-white sm:text-4xl">إجابات لأكثر ما يُسأل عنه</h2>
         </div>
 
@@ -55,10 +55,10 @@ export function Faq() {
                     aria-expanded={open}
                     aria-controls={panelId}
                     onClick={() => setOpenIndex(open ? null : i)}
-                    className="flex w-full items-center justify-between gap-4 px-6 py-5 text-start text-base font-semibold text-white transition hover:bg-slate-800/40 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-500"
+                    className="flex w-full items-center justify-between gap-4 px-6 py-5 text-start text-base font-semibold text-white transition hover:bg-slate-800/40 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-cyan-500"
                   >
                     {item.q}
-                    <svg viewBox="0 0 20 20" className={`h-5 w-5 shrink-0 text-emerald-400 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                    <svg viewBox="0 0 20 20" className={`h-5 w-5 shrink-0 text-cyan-400 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
                       <path d="m5 8 5 5 5-5" />
                     </svg>
                   </button>

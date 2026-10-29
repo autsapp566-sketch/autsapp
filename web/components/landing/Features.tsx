@@ -34,15 +34,15 @@ export function Features() {
     <section id="features" className="border-t border-slate-800/80 bg-slate-950 py-20 sm:py-28">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-sm font-semibold text-emerald-400">المميزات</p>
+          <p className="text-sm font-semibold text-cyan-400">المميزات</p>
           <h2 className="mt-3 text-3xl font-bold text-white sm:text-4xl">كل ما تحتاجه لتحويل واتساب إلى قناة مبيعات</h2>
           <p className="mt-4 text-base leading-8 text-slate-400">أدوات مصمَّمة لفرق المبيعات والدعم التي تعيش داخل المحادثة.</p>
         </div>
 
         <div className="mt-14 grid gap-5 sm:grid-cols-2">
           {features.map((f) => (
-            <article key={f.title} className="group rounded-2xl border border-slate-800 bg-slate-900/60 p-7 transition hover:border-emerald-500/40 hover:bg-slate-900">
-              <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20 transition group-hover:bg-emerald-500/15">
+            <article key={f.title} className="group rounded-2xl border border-slate-800 bg-slate-900/60 p-7 transition hover:border-cyan-500/40 hover:bg-slate-900">
+              <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400 ring-1 ring-cyan-500/20 transition group-hover:bg-cyan-500/15">
                 {f.icon}
               </span>
               <h3 className="mt-5 text-lg font-semibold text-white">{f.title}</h3>

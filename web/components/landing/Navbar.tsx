@@ -31,7 +31,7 @@ export function Navbar() {
           <Link href="/login" className="rounded-lg px-4 py-2 text-sm font-medium text-slate-300 transition hover:text-white">
             تسجيل الدخول
           </Link>
-          <Link href="/signup" className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500">
+          <Link href="/signup" className="rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-cyan-900/30 transition hover:bg-cyan-500">
             ابدأ مجانًا
           </Link>
         </div>
@@ -63,7 +63,7 @@ export function Navbar() {
             <Link href="/login" className="rounded-xl border border-slate-700 py-3 text-center text-sm font-medium text-slate-200">
               تسجيل الدخول
             </Link>
-            <Link href="/signup" className="rounded-xl bg-emerald-600 py-3 text-center text-sm font-semibold text-white">
+            <Link href="/signup" className="rounded-xl bg-cyan-600 py-3 text-center text-sm font-semibold text-white">
               ابدأ مجانًا
             </Link>
           </div>
