@@ -131,7 +131,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Sear
                     </span>
                   </div>
                   <p className="mt-2 text-sm text-slate-300" dir="ltr" style={{ textAlign: 'right' }}>
-                    {plan.priceMonthlyCents > 0 ? `${formatMoney(plan.priceMonthlyCents, plan.currency)} / month` : 'سعر مخصّص'}
+                    {plan.priceMonthlyCents > 0 ? `${formatMoney(plan.priceMonthlyCents, plan.currency)} / شهريًا` : 'سعر مخصّص'}
                     {sub.provider === 'MANUAL' ? ' · ' : ''}
                     {sub.provider === 'MANUAL' ? 'اشتراك يدوي / تجريبي' : ''}
                   </p>

@@ -70,13 +70,13 @@ export function Pricing() {
                   {price ? (
                     <>
                       <p className="flex items-baseline gap-1.5" aria-live="polite">
-                        <span dir="ltr" className="text-5xl font-bold tracking-tight text-white">${price.perMonth}</span>
-                        <span className="text-sm text-slate-500">/ شهريًا</span>
+                        <span className="text-5xl font-bold tracking-tight text-white">{price.perMonth}</span>
+                        <span className="text-sm text-slate-500">درهم / شهريًا</span>
                       </p>
                       <p className="mt-2 text-xs text-slate-500">
                         {price.billedYearly ? (
                           <>
-                            تُدفع سنويًا: <span dir="ltr">${price.billedYearly}</span>
+                            تُدفع سنويًا: <span>{price.billedYearly} درهم</span>
                           </>
                         ) : (
                           'تُدفع شهريًا'
@@ -118,7 +118,7 @@ export function Pricing() {
           })}
         </div>
 
-        <p className="mt-8 text-center text-xs text-slate-500">جميع الأسعار بالدولار الأمريكي.</p>
+        <p className="mt-8 text-center text-xs text-slate-500">جميع الأسعار بالدرهم المغربي.</p>
       </div>
     </section>
   );

@@ -18,12 +18,17 @@ export function formatDateTime(value: string | Date | null | undefined): string 
   return Number.isNaN(d.getTime()) ? '—' : DATE_TIME.format(d);
 }
 
-export function formatMoney(cents: number, currency = 'USD'): string {
+export function formatMoney(cents: number, currency = 'MAD'): string {
+  const amount = cents / 100;
+  const digits = new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
+  }).format(amount);
+  if (currency === 'MAD') return `${digits} درهم`;
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
-    maximumFractionDigits: cents % 100 === 0 ? 0 : 2,
-  }).format(cents / 100);
+    maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
+  }).format(amount);
 }
 
 export function formatNumber(n: number): string {

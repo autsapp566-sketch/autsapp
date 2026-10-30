@@ -40,7 +40,7 @@ export async function computeMrr(now = new Date()) {
 
   return {
     cents: byPlan.reduce((sum, p) => sum + p.mrrCents, 0),
-    currency: plans[0]?.currency ?? 'USD',
+    currency: plans[0]?.currency ?? 'MAD',
     payingOrganizations: byPlan.reduce((sum, p) => sum + p.subscribers, 0),
     byPlan,
   };

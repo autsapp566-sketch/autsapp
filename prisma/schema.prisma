@@ -90,7 +90,7 @@ model Plan {
   tier                 PlanTier @unique
   name                 String
   priceMonthlyCents    Int      @default(0)
-  currency             String   @default("USD")
+  currency             String   @default("MAD")
   /// Max linked WhatsApp numbers (null = unlimited).
   maxWhatsAppInstances Int?
   /// AI replies per billing period (null = unlimited).

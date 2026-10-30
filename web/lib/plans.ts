@@ -1,6 +1,6 @@
 /**
  * Marketing copy for the pricing table. Limits mirror the API plans (src/services/billing/plans.js);
- * prices are the same placeholders (USD) — change both together when final pricing is decided.
+ * prices are in Moroccan dirhams — change both together when final pricing is decided.
  */
 export type PlanId = 'starter' | 'professional' | 'enterprise';
 export type BillingInterval = 'monthly' | 'annual';
@@ -9,7 +9,7 @@ export type MarketingPlan = {
   id: PlanId;
   name: string;
   tagline: string;
-  /** USD per month when paid monthly. `null` = custom quote. */
+  /** Dirhams per month when paid monthly. `null` = custom quote. */
   monthly: number | null;
   /** Annual billing = 10 months for the price of 12. */
   highlight?: boolean;
@@ -24,14 +24,14 @@ export const PLANS: MarketingPlan[] = [
     id: 'starter',
     name: 'Starter',
     tagline: 'للمشاريع التي تبدأ رحلتها مع الأتمتة',
-    monthly: 29,
+    monthly: 290,
     features: ['رقم واتساب واحد', '1,000 رسالة ذكاء اصطناعي شهريًا', 'تأهيل العملاء المحتملين تلقائيًا', 'قاعدة معرفة للمنتجات والأسئلة', 'دعم عبر البريد الإلكتروني'],
   },
   {
     id: 'professional',
     name: 'Pro',
     tagline: 'للفرق التي تدير أكثر من نشاط أو فرع',
-    monthly: 79,
+    monthly: 790,
     highlight: true,
     features: ['3 أرقام واتساب', '5,000 رسالة ذكاء اصطناعي شهريًا', 'تحويل المحادثة لموظف بنقرة واحدة', 'فريق متعدد الموظفين بصلاحيات', 'تحليلات المبيعات والتأهيل', 'دعم أولوية'],
   },
