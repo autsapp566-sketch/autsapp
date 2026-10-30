@@ -29,7 +29,6 @@ export default function VoiceAISettingsView({ embedded = false }) {
   const isAdmin = user?.role === 'ADMIN';
 
   const [form, setForm] = useState({
-    openAiApiKey: '',
     appPublicUrl: '',
     textModel: 'gpt-4o-mini',
     sttEnabled: true,
@@ -58,7 +57,6 @@ export default function VoiceAISettingsView({ embedded = false }) {
         employeePrompt: data.systemPrompt ?? s.employeePrompt ?? '',
         qualificationPrompt: s.qualificationPrompt ?? '',
         openAiKeyConfigured: data.openaiApiKeyConfigured ?? s.openAiKeyConfigured,
-        openAiApiKey: data.openaiApiKey ?? s.openAiKeyMasked ?? '',
         appPublicUrl: s.appPublicUrl ?? '',
       }));
       setModelOptions(data.options?.textModelOptions ?? []);
@@ -98,9 +96,6 @@ export default function VoiceAISettingsView({ embedded = false }) {
         qualificationPrompt: form.qualificationPrompt,
         appPublicUrl: form.appPublicUrl,
       };
-      if (form.openAiApiKey && form.openAiApiKey.startsWith('sk-') && !form.openAiApiKey.includes('••••')) {
-        payload.openaiApiKey = form.openAiApiKey;
-      }
       const data = await saveSettings(payload);
       const s = data.settings ?? {};
       setForm((prev) => ({
@@ -109,7 +104,6 @@ export default function VoiceAISettingsView({ embedded = false }) {
         employeePrompt: data.systemPrompt ?? s.employeePrompt ?? prev.employeePrompt,
         qualificationPrompt: s.qualificationPrompt ?? prev.qualificationPrompt,
         openAiKeyConfigured: data.openaiApiKeyConfigured ?? s.openAiKeyConfigured ?? prev.openAiKeyConfigured,
-        openAiApiKey: data.openaiApiKey ?? s.openAiKeyMasked ?? prev.openAiApiKey,
         appPublicUrl: s.appPublicUrl ?? prev.appPublicUrl,
       }));
       setToast(data.message ?? 'تم حفظ البرومبت والإعدادات بنجاح');
@@ -167,25 +161,16 @@ export default function VoiceAISettingsView({ embedded = false }) {
             إعدادات محرك الذكاء الاصطناعي والصوت (OpenAI & Voice AI)
           </h2>
           <p className="text-xs text-slate-400 sm:text-sm">
-            ضبط المفتاح وإضافة ميزة استماع الرسائل الصوتية وتوليد الإجابة الصوتية بنبرة طبيعية
+            استماع الرسائل الصوتية وتوليد الإجابة الصوتية بنبرة طبيعية. مفتاح OpenAI يُقرأ من متغير البيئة فقط.
           </p>
         </header>
 
         <div className="grid gap-5 md:grid-cols-2">
           <div className="space-y-2">
-            <label htmlFor="openAiApiKey" className="block text-sm text-slate-300">
-              OpenAI API Key
-            </label>
-            <input
-              id="openAiApiKey"
-              type="password"
-              dir="ltr"
-              autoComplete="off"
-              placeholder="sk-..."
-              value={form.openAiApiKey}
-              onChange={(e) => setForm((p) => ({ ...p, openAiApiKey: e.target.value }))}
-              className="w-full rounded-2xl border border-slate-700/80 bg-[#0b1220] px-4 py-3.5 text-sm text-white placeholder:text-slate-600 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-            />
+            <p className="text-sm text-slate-300">OpenAI API Key</p>
+            <p className="rounded-2xl border border-slate-700/80 bg-[#0b1220] px-4 py-3.5 text-sm text-slate-300">
+              {form.openAiKeyConfigured ? 'مضبوط من متغير البيئة OPENAI_API_KEY' : 'غير مضبوط — أضف OPENAI_API_KEY في متغيرات السيرفر'}
+            </p>
           </div>
           <div className="space-y-2">
             <label htmlFor="textModel" className="block text-sm text-slate-300">

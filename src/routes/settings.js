@@ -82,7 +82,6 @@ router.post('/', requirePlatformAdmin, async (req, res, next) => {
   try {
     const body = req.body ?? {};
     const row = await updateAiSettings({
-      openAiApiKey: body.openaiApiKey ?? body.openAiApiKey,
       appPublicUrl: body.appPublicUrl,
       greenApiInstanceId: body.greenApiInstanceId ?? body.greenInstanceId ?? body.idInstance,
       greenApiToken: body.greenApiToken ?? body.apiTokenInstance,

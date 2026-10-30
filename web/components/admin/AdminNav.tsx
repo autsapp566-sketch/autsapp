@@ -7,6 +7,7 @@ const ITEMS = [
   { href: '/admin', label: 'نظرة عامة', exact: true },
   { href: '/admin/users', label: 'المستخدمون', exact: false },
   { href: '/admin/system', label: 'صحة النظام', exact: false },
+  { href: '/admin/evolution', label: 'Evolution', exact: false },
 ];
 
 export function AdminNav() {

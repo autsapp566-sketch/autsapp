@@ -52,7 +52,7 @@ export async function getAiSettings() {
       },
     });
     row = await bootstrapIntegrationFromEnvOnce(row);
-    return row;
+    return withEnvOpenAiKey(row);
   }
 
   if (!row.employeePrompt?.trim()) {
@@ -72,13 +72,21 @@ export async function getAiSettings() {
   }
 
   row = await bootstrapIntegrationFromEnvOnce(row);
-  return row;
+  return withEnvOpenAiKey(row);
+}
+
+/** OpenAI key is environment-only. A value saved earlier in the database is never used. */
+function envOpenAiKey() {
+  return process.env.OPENAI_API_KEY?.trim() || '';
+}
+
+function withEnvOpenAiKey(row) {
+  return { ...row, openAiApiKey: envOpenAiKey() };
 }
 
 /** استيراد لمرة واحدة من .env القديم إن وُجد، ثم الإعداد من الواجهة فقط */
 async function bootstrapIntegrationFromEnvOnce(row) {
   const envSnapshot = {
-    openAiApiKey: process.env.OPENAI_API_KEY?.trim() || '',
     appPublicUrl: process.env.APP_PUBLIC_URL?.trim() || '',
     greenApiInstanceId: process.env.GREEN_API_INSTANCE_ID?.trim() || '',
     greenApiToken: process.env.GREEN_API_TOKEN?.trim() || '',
@@ -86,9 +94,6 @@ async function bootstrapIntegrationFromEnvOnce(row) {
   };
 
   const patch = {};
-  if (!row.openAiApiKey?.trim() && envSnapshot.openAiApiKey) {
-    patch.openAiApiKey = envSnapshot.openAiApiKey;
-  }
   if (!row.appPublicUrl?.trim() && envSnapshot.appPublicUrl) {
     patch.appPublicUrl = envSnapshot.appPublicUrl;
   }
@@ -126,18 +131,6 @@ export async function updateAiSettings(input) {
   const data = {};
   let nextEmployee = current.employeePrompt;
   let nextQualification = current.qualificationPrompt;
-  const rawOpenAiKey =
-    typeof input.openAiApiKey === 'string'
-      ? input.openAiApiKey
-      : typeof input.openaiApiKey === 'string'
-        ? input.openaiApiKey
-        : null;
-  if (rawOpenAiKey !== null) {
-    const key = rawOpenAiKey.trim();
-    if (key && !key.includes('••••') && key.startsWith('sk-')) {
-      data.openAiApiKey = key;
-    }
-  }
   if (typeof input.appPublicUrl === 'string') {
     data.appPublicUrl = input.appPublicUrl.trim();
   }
@@ -186,11 +179,6 @@ export async function updateAiSettings(input) {
     data,
   });
 
-  if (data.openAiApiKey) {
-    const { invalidateOpenAIClientCache } = await import('./openaiClient.js');
-    invalidateOpenAIClientCache();
-  }
-
   if (
     data.greenApiInstanceId !== undefined ||
     data.greenApiToken !== undefined ||
@@ -223,14 +211,13 @@ export function serializeSystemSettings(row) {
 
   return {
     systemPrompt: merchantPrompt,
-    openaiApiKey: serialized.openAiKeyMasked || '',
     openaiApiKeyConfigured: serialized.openAiKeyConfigured,
     textModel: serialized.textModel,
   };
 }
 
 export function serializeAiSettings(row) {
-  const openAiKey = row.openAiApiKey?.trim() || '';
+  const openAiKey = envOpenAiKey();
   const greenToken = row.greenApiToken?.trim() || '';
 
   return {
@@ -243,8 +230,6 @@ export function serializeAiSettings(row) {
       ? row.qualificationPrompt
       : QUALIFICATION_SYSTEM_PROMPT,
     systemPrompt: row.systemPrompt,
-    openAiApiKey: openAiKey,
-    openAiKeyMasked: maskSecret(openAiKey, 'sk-'),
     openAiKeyConfigured: Boolean(openAiKey),
     greenApiInstanceId: row.greenApiInstanceId ?? '',
     greenApiUrl: row.greenApiUrl ?? '',

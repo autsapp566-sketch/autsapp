@@ -136,10 +136,6 @@ function IntegrationStatus({ integration }) {
         {good ? '✓ Evolution API متصل' : '⚠ Evolution API غير جاهز'}
         {integration.version ? <span className="ms-2 text-xs opacity-80">v{integration.version}</span> : null}
       </p>
-      <p className="mt-1 text-xs opacity-90" dir="ltr">
-        {integration.baseUrl || 'EVOLUTION_API_URL غير مضبوط'}
-        {integration.apiKeyMasked ? ` · key ${integration.apiKeyMasked}` : ''}
-      </p>
       {!good && integration.error ? <p className="mt-1 text-xs">{integration.error}</p> : null}
     </div>
   );
@@ -392,12 +388,7 @@ export default function WhatsAppLinkPage() {
       <div>
         <h2 className="text-xl font-bold text-white">ربط أرقام واتساب — Evolution API</h2>
         <p className="mt-2 text-sm text-slate-400">
-          اضغط «إنشاء الجلسة»، ثم امسح رمز QR من واتساب ← الأجهزة المرتبطة. عنوان الخادم والمفتاح العام يُضبطان في{' '}
-          <span className="font-mono text-xs text-slate-300">.env</span> (
-          <Link to="/dashboard/settings" className="text-emerald-400 hover:underline">
-            الإعدادات
-          </Link>
-          ).
+          اضغط «إنشاء الجلسة»، ثم امسح رمز QR من واتساب ← الأجهزة المرتبطة.
         </p>
       </div>
 

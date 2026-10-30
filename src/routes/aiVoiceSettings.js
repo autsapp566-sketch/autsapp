@@ -31,7 +31,6 @@ async function readSettings(_req, res, next) {
 async function writeSettings(req, res, next) {
   try {
     const row = await updateAiSettings({
-      openAiApiKey: req.body?.openAiApiKey,
       appPublicUrl: req.body?.appPublicUrl,
       greenApiInstanceId:
         req.body?.greenApiInstanceId ?? req.body?.greenInstanceId ?? req.body?.idInstance,

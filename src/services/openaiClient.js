@@ -13,7 +13,7 @@ export async function resolveOpenAiApiKey() {
 export async function getOpenAIClient() {
   const key = await resolveOpenAiApiKey();
   if (!key) {
-    throw new Error('مفتاح OpenAI غير مضبوط — أضفه من إعدادات الصوت والذكاء');
+    throw new Error('مفتاح OpenAI غير مضبوط — أضف OPENAI_API_KEY في متغيرات البيئة');
   }
   if (cachedKey !== key) {
     client = new OpenAI({ apiKey: key });

@@ -1,6 +1,5 @@
 import { useAuth } from '../../context/AuthContext.jsx';
 import VoiceAISettingsView from '../../views/VoiceAISettingsView.jsx';
-import EvolutionSettingsView from '../../views/EvolutionSettingsView.jsx';
 import HandoffForwardSettings from '../../views/HandoffForwardSettings.jsx';
 
 export default function SettingsPage() {
@@ -30,7 +29,6 @@ export default function SettingsPage() {
       {isAdmin ? (
         <>
           <HandoffForwardSettings />
-          <EvolutionSettingsView embedded />
           <VoiceAISettingsView embedded />
         </>
       ) : null}

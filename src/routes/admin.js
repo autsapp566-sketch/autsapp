@@ -12,6 +12,11 @@ import {
   unbanUser,
 } from '../services/admin/adminUsers.js';
 import { getSystemHealth } from '../services/admin/systemHealth.js';
+import {
+  getEvolutionAdminStatus,
+  saveEvolutionPublicUrl,
+  syncAllEvolutionWebhooks,
+} from '../services/admin/evolutionAdmin.js';
 
 /**
  * Super-admin API (mounted at /api/admin).
@@ -82,6 +87,18 @@ adminRouter.post('/users/:id/impersonate', asyncRoute(async (req, res) => {
 
 adminRouter.get('/health', asyncRoute(async (req, res) => {
   res.json(await getSystemHealth({ force: req.query.refresh === '1' }));
+}));
+
+adminRouter.get('/evolution', asyncRoute(async (req, res) => {
+  res.json(await getEvolutionAdminStatus(req));
+}));
+
+adminRouter.post('/evolution/public-url', asyncRoute(async (req, res) => {
+  res.json(await saveEvolutionPublicUrl(req.body?.appPublicUrl));
+}));
+
+adminRouter.post('/evolution/webhook-sync', asyncRoute(async (req, res) => {
+  res.json(await syncAllEvolutionWebhooks(req));
 }));
 
 adminRouter.get('/audit', asyncRoute(async (req, res) => {
