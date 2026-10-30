@@ -29,8 +29,20 @@ const config: Config = {
           '0%': { opacity: '0', transform: 'translateY(12px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        float: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-10px)' },
+        },
+        'pop-in': {
+          '0%': { opacity: '0', transform: 'translateY(10px) scale(0.96)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
       },
-      animation: { 'fade-up': 'fade-up 0.6s ease-out both' },
+      animation: {
+        'fade-up': 'fade-up 0.6s ease-out both',
+        float: 'float 7s ease-in-out infinite',
+        'pop-in': 'pop-in 0.45s ease-out both',
+      },
     },
   },
   plugins: [],

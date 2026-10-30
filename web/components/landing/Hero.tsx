@@ -1,43 +1,6 @@
 import Link from 'next/link';
+import { ProductStage } from '@/components/landing/ProductStage';
 import { TRIAL_DAYS } from '@/lib/plans';
-
-function ChatMockup() {
-  return (
-    <div className="relative mx-auto w-full max-w-md" aria-hidden>
-      <div className="absolute -inset-6 -z-10 rounded-[2.5rem] bg-cyan-500/10 blur-3xl" />
-      <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/90 shadow-2xl shadow-cyan-950/40">
-        <div className="flex items-center gap-3 border-b border-slate-800 bg-slate-900 px-5 py-4">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-500/15 text-sm font-bold text-cyan-300 ring-1 ring-cyan-500/30">م</span>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-white">متجر الأناقة</p>
-            <p className="flex items-center gap-1.5 text-xs text-cyan-400">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-400" />
-              المساعد الذكي يرد الآن
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-3 px-5 py-6 text-sm">
-          <div className="max-w-[85%] rounded-2xl rounded-ss-md bg-slate-800 px-4 py-3 text-slate-200">
-            السلام عليكم، هل عندكم الحذاء الرياضي بمقاس 42؟ وكم سعره؟
-          </div>
-          <div className="me-auto max-w-[85%] rounded-2xl rounded-se-md bg-cyan-600 px-4 py-3 text-white">
-            وعليكم السلام 👋 نعم، المقاس 42 متوفر باللونين الأسود والأبيض بسعر 320 ر.س. هل أحجز لك زوجًا؟
-          </div>
-          <div className="max-w-[85%] rounded-2xl rounded-ss-md bg-slate-800 px-4 py-3 text-slate-200">
-            ممتاز، الأسود. أريد التوصيل إلى الرياض.
-          </div>
-          <div className="me-auto max-w-[85%] rounded-2xl rounded-se-md bg-cyan-600 px-4 py-3 text-white">
-            تم تسجيل طلبك ✅ سأحوّلك الآن لأحد موظفينا لتأكيد العنوان.
-          </div>
-          <div className="mx-auto flex w-fit items-center gap-2 rounded-full border border-ember-500/30 bg-ember-500/10 px-4 py-1.5 text-xs font-medium text-ember-400">
-            <span aria-hidden>🔔</span> عميل مؤهَّل — تم التحويل لفريق المبيعات
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export function Hero() {
   return (
@@ -81,7 +44,7 @@ export function Hero() {
           </ul>
         </div>
 
-        <ChatMockup />
+        <ProductStage />
       </div>
     </section>
   );
